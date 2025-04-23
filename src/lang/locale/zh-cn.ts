@@ -247,6 +247,8 @@ export default {
     `目前 OpenAI API 还处于测试中，您需要在自己的。` +
     `OpenAI 账户中充值至少 5 美元后才能生成 API key，` +
     `然后就可以在 Excalidraw 中配置并使用 AI。`,
+  AI_ENABLED_NAME : "启用 AI 功能" ,
+  AI_ENABLED_DESC : "您需要重新打开 Excalidraw 才能使更改生效。" ,
   AI_OPENAI_TOKEN_NAME: "OpenAI API key",
   AI_OPENAI_TOKEN_DESC:
     "您可以访问您的<a href='https://platform.openai.com/api-keys'> OpenAI 账户</a>来获取自己的 OpenAI API key。",
@@ -427,6 +429,10 @@ FILENAME_HEAD: "文件名",
   GRID_OPACITY_NAME: "网格透明度",
   GRID_OPACITY_DESC: "网格透明度还将控制将箭头绑定到元素时绑定框的透明度。<br>"+
     "设置网格的不透明度。 0 表示完全透明，100 表示完全不透明。",
+  GRID_DIRECTION_NAME : "网格方向" ,
+  GRID_DIRECTION_DESC : "第一个开关显示/隐藏水平网格，第二个开关显示/隐藏垂直网格。" ,
+  GRID_HORIZONTAL : "渲染水平网格" ,
+  GRID_VERTICAL : "渲染垂直网格" ,
   LASER_HEAD: "激光笔工具（更多工具 > 激光笔）",
   LASER_COLOR: "激光笔颜色",
   LASER_DECAY_TIME_NAME: "激光笔消失时间",
