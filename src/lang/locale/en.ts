@@ -371,6 +371,7 @@ FILENAME_HEAD: "Filename",
   DEFAULT_PEN_MODE_NAME: "Pen mode",
   DEFAULT_PEN_MODE_DESC:
     "Should pen mode be automatically enabled when opening Excalidraw?",
+  ENABLE_DOUBLE_CLICK_TEXT_EDITING_NAME: "Enable double-click text create",
   DISABLE_DOUBLE_TAP_ERASER_NAME: "Enable double-tap eraser in pen mode",
   DISABLE_SINGLE_FINGER_PANNING_NAME: "Enable single-finger panning in pen mode",
   SHOW_PEN_MODE_FREEDRAW_CROSSHAIR_NAME: "Show (+) crosshair in pen mode",
@@ -960,6 +961,7 @@ FILENAME_HEAD: "Filename",
   PROMPT_BUTTON_INSERT_SPACE: "Insert space",
   PROMPT_BUTTON_INSERT_LINK: "Insert markdown link to file",
   PROMPT_BUTTON_UPPERCASE: "Uppercase",
+  PROMPT_BUTTON_SPECIAL_CHARS: "Special Characters",
   PROMPT_SELECT_TEMPLATE: "Select a template",
 
   //ModifierKeySettings
@@ -1098,6 +1100,16 @@ FILENAME_HEAD: "Filename",
   EXPORTDIALOG_PDF_PROGRESS_NOTICE: "Exporting PDF. If this image is large, it may take a while.",
   EXPORTDIALOG_PDF_PROGRESS_DONE: "Export complete",
   EXPORTDIALOG_PDF_PROGRESS_ERROR: "Error exporting PDF, check developer console for details",
+
+  // Screenshot tab
+  EXPORTDIALOG_NOT_AVAILALBE: "Sorry, this feature is only available when the drawing is open in the main Obsidian workspace.",
+  EXPORTDIALOG_TAB_SCREENSHOT: "Screenshot",
+  EXPORTDIALOG_SCREENSHOT_DESC: "Screenshots will include embeddables such as markdown pages, YouTube, websites, etc. They are only available on desktop, cannot be automatically exported, and only support PNG format.",
+  SCREENSHOT_DESKTOP_ONLY: "Screenshot feature is only available on desktop",
+  SCREENSHOT_FILE_SUCCESS: "Screenshot saved to vault",
+  SCREENSHOT_CLIPBOARD_SUCCESS: "Screenshot copied to clipboard",
+  SCREENSHOT_CLIPBOARD_ERROR: "Failed to copy screenshot to clipboard: ",
+  SCREENSHOT_ERROR: "Error capturing screenshot - see console log",
 
   //exportUtils.ts
   PDF_EXPORT_DESKTOP_ONLY: "PDF export is only available on desktop",

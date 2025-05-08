@@ -18,12 +18,12 @@ import {
   getContainerElement,
 } from "../constants/constants";
 import ExcalidrawPlugin from "../core/main";
-import { ExcalidrawElement, ExcalidrawImageElement, ExcalidrawTextElement, ImageCrop } from "@zsviczian/excalidraw/types/excalidraw/element/types";
+import { ExcalidrawElement, ExcalidrawImageElement, ExcalidrawTextElement, ImageCrop } from "@zsviczian/excalidraw/types/element/src/types";
 import { ExportSettings } from "../view/ExcalidrawView";
 import { getDataURLFromURL, getIMGFilename, getMimeType, getURLImageExtension } from "./fileUtils";
 import { generateEmbeddableLink } from "./customEmbeddableUtils";
 import { FILENAMEPARTS } from "../types/utilTypes";
-import { Mutable } from "@zsviczian/excalidraw/types/excalidraw/utility-types";
+import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
 import { cleanBlockRef, cleanSectionHeading, getFileCSSClasses } from "./obsidianUtils";
 import { updateElementLinksToObsidianLinks } from "./excalidrawAutomateUtils";
 import { CropImage } from "../shared/CropImage";
@@ -83,7 +83,7 @@ export async function checkExcalidrawVersion() {
       );
     }
   } catch (e) {
-    errorlog({ where: "Utils/checkExcalidrawVersion", error: e });
+    console.log({ where: "Utils/checkExcalidrawVersion", error: e });
   }
   versionUpdateCheckTimer = window.setTimeout(() => {
     versionUpdateChecked = false;

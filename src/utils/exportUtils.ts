@@ -1,6 +1,8 @@
 import { Notice } from 'obsidian';
 import { DEVICE } from 'src/constants/constants';
 import { t } from 'src/lang/helpers';
+import { download } from './fileUtils';
+import { svgToBase64 } from './utils';
 
 const DPI = 96;
 
@@ -54,7 +56,9 @@ export const STANDARD_PAGE_SIZES = {
   Legal: { width: 816, height: 1344 },     // 8.5 × 14 inches
   Letter: { width: 816, height: 1056 },    // 8.5 × 11 inches
   Tabloid: { width: 1056, height: 1632 },  // 11 × 17 inches
-  Ledger: { width: 1632, height: 1056 }    // 17 × 11 inches
+  Ledger: { width: 1632, height: 1056 },   // 17 × 11 inches
+  "HD Screen": { width: 1920, height: 1080 },// 16:9 aspect ratio
+  "MATCH IMAGE": { width: 0, height: 0 },    // 0 means use the current screen size
 } as const;
 
 export type PageSize = keyof typeof STANDARD_PAGE_SIZES;
@@ -69,9 +73,15 @@ export function getMarginValue(margin:PDFPageMarginString): PDFMargin {
   }
 }
 
-export function getPageDimensions(pageSize: PageSize, orientation: PageOrientation): PageDimensions {
-  const dimensions = STANDARD_PAGE_SIZES[pageSize];
-  return orientation === "portrait" 
+export function getPageDimensions(pageSize: PageSize, orientation: PageOrientation, dims?: {width: number, height: number}): PageDimensions {
+  let dimensions:{width: number, height: number};
+  dimensions = STANDARD_PAGE_SIZES[pageSize];
+
+  if (dims && dimensions.width === 0 && dimensions.height === 0) {
+    dimensions = { width: dims.width, height: dims.height };
+  }
+
+  return orientation === "portrait" || pageSize === "MATCH IMAGE" || pageSize === "HD Screen"
     ? { width: dimensions.width, height: dimensions.height }
     : { width: dimensions.height, height: dimensions.width };
 }
@@ -505,3 +515,29 @@ export async function exportSVGToClipboard(svg: SVGSVGElement) {
     console.error("Failed to copy SVG to clipboard: ", error);
   }
 }
+
+export async function exportPNGToClipboard(png: Blob) {
+  await navigator.clipboard.write([
+    new window.ClipboardItem({
+      "image/png": png,
+    }),
+  ]);
+}
+
+export function exportPNG(png: Blob, filename: string) {
+  const reader = new FileReader();
+  reader.readAsDataURL(png);
+  reader.onloadend = () => {
+    const base64data = reader.result;
+    download(null, base64data, `${filename}.png`);
+  };
+}
+
+export function exportSVG(svg: SVGSVGElement, filename: string) {
+  download(
+    null,
+    svgToBase64(svg.outerHTML),
+    `${filename}.svg`,
+  );
+}
+

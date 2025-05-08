@@ -371,6 +371,7 @@ FILENAME_HEAD: "文件名",
   DEFAULT_PEN_MODE_NAME: "触控笔模式（Pen mode）",
   DEFAULT_PEN_MODE_DESC:
     "打开绘图时，是否自动开启触控笔模式？",
+  ENABLE_DOUBLE_CLICK_TEXT_EDITING_NAME : "启用双击文本创建",
   DISABLE_DOUBLE_TAP_ERASER_NAME: "启用手写模式下的双击橡皮擦功能",
   DISABLE_SINGLE_FINGER_PANNING_NAME: "启用手写模式下的单指平移功能",
   SHOW_PEN_MODE_FREEDRAW_CROSSHAIR_NAME: "在触控笔模式下显示十字准星（+）",
@@ -960,6 +961,7 @@ FILENAME_HEAD: "文件名",
   PROMPT_BUTTON_INSERT_SPACE: "插入空格",
   PROMPT_BUTTON_INSERT_LINK: "插入内部链接",
   PROMPT_BUTTON_UPPERCASE: "大写",
+  PROMPT_BUTTON_SPECIAL_CHARS : "特殊字符" ,
   PROMPT_SELECT_TEMPLATE: "选择一个模板",
 
   //ModifierKeySettings
@@ -1098,6 +1100,16 @@ EXPORTDIALOG_PDF: "导出 PDF 文件",
 EXPORTDIALOG_PDF_PROGRESS_NOTICE: "正在导出 PDF。如果图像较大，可能需要一些时间。" ,
 EXPORTDIALOG_PDF_PROGRESS_DONE: "导出完成" ,
 EXPORTDIALOG_PDF_PROGRESS_ERROR: "导出 PDF 时出错，请检查开发者控制台以获取详细信息" ,
+
+// Screenshot tab
+EXPORTDIALOG_NOT_AVAILALBE : "抱歉，此功能仅在绘图在主 Obsidian 工作区打开时可用。",
+EXPORTDIALOG_TAB_SCREENSHOT : "截图" ,
+EXPORTDIALOG_SCREENSHOT_DESC : "截图将包括可嵌入的内容，例如 markdown 页面、YouTube、网站等。它们仅在桌面端可用，无法自动导出，并且仅支持 PNG 格式。" ,
+SCREENSHOT_DESKTOP_ONLY : "截图功能仅在桌面端可用" ,
+SCREENSHOT_FILE_SUCCESS : "截图已保存到仓库" ,
+SCREENSHOT_CLIPBOARD_SUCCESS : "截图已复制到剪贴板" ,
+SCREENSHOT_CLIPBOARD_ERROR : "无法复制截图到剪贴板：" ,
+SCREENSHOT_ERROR : "截图出错 - 请查看控制台日志" ,
 
 // exportUtils.ts
 PDF_EXPORT_DESKTOP_ONLY: "PDF 导出功能仅限桌面端使用" ,

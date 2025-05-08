@@ -22,7 +22,7 @@ import {
   ExcalidrawTextElement,
   FileId,
   NonDeletedExcalidrawElement,
-} from "@zsviczian/excalidraw/types/excalidraw/element/types";
+} from "@zsviczian/excalidraw/types/element/src/types";
 import {
   AppState,
   BinaryFileData,
@@ -77,7 +77,6 @@ import {
   getExcalidrawMarkdownHeaderSection,
 } from "../shared/ExcalidrawData";
 import {
-  arrayBufferToBase64,
   checkAndCreateFolder,
   createOrOverwriteFile,
   download,
@@ -142,7 +141,7 @@ import { getMermaidText, shouldRenderMermaid } from "../utils/mermaidUtils";
 import { nanoid } from "nanoid";
 import { CustomMutationObserver, DEBUGGING, debug, log} from "../utils/debugHelper";
 import { errorHTML, extractCodeBlocks, postOpenAI } from "../utils/AIUtils";
-import { Mutable } from "@zsviczian/excalidraw/types/excalidraw/utility-types";
+import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
 import { SelectCard } from "../shared/Dialogs/SelectCard";
 import { Packages } from "../types/types";
 import React from "react";
@@ -152,10 +151,9 @@ import { getPDFCropRect } from "../utils/PDFUtils";
 import { Position, ViewSemaphores } from "../types/excalidrawViewTypes";
 import { DropManager } from "./managers/DropManager";
 import { ImageInfo } from "src/types/excalidrawAutomateTypes";
-import { exportToPDF, getMarginValue, getPageDimensions, PageOrientation, PageSize } from "src/utils/exportUtils";
+import { exportPNG, exportPNGToClipboard, exportSVG, exportToPDF, getMarginValue, getPageDimensions, PageOrientation, PageSize } from "src/utils/exportUtils";
 import { FrameRenderingOptions } from "src/types/utilTypes";
 import { CaptureUpdateAction } from "src/constants/constants";
-import { FlipHorizontal } from "lucide-react";
 
 const EMBEDDABLE_SEMAPHORE_TIMEOUT = 2000;
 const PREVENT_RELOAD_TIMEOUT = 2000;
@@ -392,6 +390,10 @@ export default class ExcalidrawView extends TextFileView implements HoverParent{
     return this.ownerDocument.defaultView;
   }
 
+  get isInMainObsidianWorkspace(): boolean {
+    return document === this.ownerDocument;
+  }
+
   setHookServer(ea?:ExcalidrawAutomate) {
     (process.env.NODE_ENV === 'development') && DEBUGGING && debug(this.setHookServer, "ExcalidrawView.setHookServer", ea);
     if(ea) {
@@ -583,11 +585,7 @@ export default class ExcalidrawView extends TextFileView implements HoverParent{
     if (!svg) {
       return;
     }
-    download(
-      null,
-      svgToBase64(svg.outerHTML),
-      `${this.file.basename}.svg`,
-    );
+    exportSVG(svg, this.file.basename);
   }
 
   public async getSVG(embedScene?: boolean, selectedOnly?: boolean):Promise<SVGSVGElement> {
@@ -612,8 +610,10 @@ export default class ExcalidrawView extends TextFileView implements HoverParent{
       return;
     }
   
+    const scene = this.getScene(selectedOnly);
+
     const svg = await this.svg(
-      this.getScene(selectedOnly),
+      scene,
       undefined,
       false,
       true
@@ -622,20 +622,26 @@ export default class ExcalidrawView extends TextFileView implements HoverParent{
     if (!svg) {
       return;
     }
-  
+
+    const boundingBox = this.plugin.ea.getBoundingBox(scene.elements);
+    const margin = getMarginValue(this.exportDialog.margin);
+    const [width, height] = [boundingBox.width, boundingBox.height];
+
     exportToPDF({
       SVG: [svg],
       scale: {
         zoom: this.exportDialog.scale,
-        fitToPage: this.exportDialog.fitToPage
+        fitToPage: pageSize === "MATCH IMAGE" || pageSize === "HD Screen"
+          ? 1
+          : this.exportDialog.fitToPage
       },
       pageProps: {
-        dimensions: getPageDimensions(pageSize, orientation),
+        dimensions: getPageDimensions(pageSize, orientation, {width, height}),
         backgroundColor: this.exportDialog.getPaperColor(),
-        margin: getMarginValue(this.exportDialog.margin),
+        margin,
         alignment: this.exportDialog.alignment,
       },
-      filename: this.file.basename,
+      filename: this.file.basename+".pdf",
     });
   }
 
@@ -679,7 +685,7 @@ export default class ExcalidrawView extends TextFileView implements HoverParent{
       if (!png) {
         return;
       }
-      await createOrOverwriteFile(this.app, filepath, await png.arrayBuffer());
+      await createOrOverwriteFile(this.app, filepath, png);
     }
 
     if(this.plugin.settings.autoExportLightAndDark) {
@@ -708,11 +714,7 @@ export default class ExcalidrawView extends TextFileView implements HoverParent{
     //
     // not await so that we can detect whether the thrown error likely relates
     // to a lack of support for the Promise ClipboardItem constructor
-    await navigator.clipboard.write([
-      new window.ClipboardItem({
-        "image/png": png,
-      }),
-    ]);
+    await exportPNGToClipboard(png);
   }
 
   public async exportPNG(embedScene?:boolean, selectedOnly?: boolean):Promise<void> {
@@ -725,12 +727,7 @@ export default class ExcalidrawView extends TextFileView implements HoverParent{
     if (!png) {
       return;
     }
-    const reader = new FileReader();
-    reader.readAsDataURL(png);
-    reader.onloadend = () => {
-      const base64data = reader.result;
-      download(null, base64data, `${this.file.basename}.png`);
-    };
+    exportPNG(png, this.file.basename);
   }
 
   public setPreventReload() {
