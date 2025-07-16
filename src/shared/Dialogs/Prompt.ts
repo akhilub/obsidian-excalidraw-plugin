@@ -13,7 +13,7 @@ import ExcalidrawView from "../../view/ExcalidrawView";
 import ExcalidrawPlugin from "../../core/main";
 import { escapeRegExp, getLinkParts, sleep } from "../../utils/utils";
 import { getLeaf, openLeaf } from "../../utils/obsidianUtils";
-import { checkAndCreateFolder, splitFolderAndFilename } from "src/utils/fileUtils";
+import { createOrOverwriteFile } from "src/utils/fileUtils";
 import { KeyEvent, isWinCTRLorMacCMD } from "src/utils/modifierkeyHelper";
 import { t } from "src/lang/helpers";
 import { ExcalidrawElement, getEA } from "src/core";
@@ -98,6 +98,8 @@ export class GenericInputPrompt extends Modal {
   private customComponents: (container: HTMLElement) => void;
   private blockPointerInputOutsideModal: boolean = false;
   private controlsOnTop: boolean = false;
+  private draggable: boolean = false;
+  private cleanupDragListeners: (() => void) | null = null;
 
   public static Prompt(
     view: ExcalidrawView,
@@ -112,6 +114,7 @@ export class GenericInputPrompt extends Modal {
     customComponents?: (container: HTMLElement) => void,
     blockPointerInputOutsideModal?: boolean,
     controlsOnTop?: boolean,
+    draggable?: boolean,
   ): Promise<string> {
     const newPromptModal = new GenericInputPrompt(
       view,
@@ -126,6 +129,7 @@ export class GenericInputPrompt extends Modal {
       customComponents,
       blockPointerInputOutsideModal,
       controlsOnTop,
+      draggable,
     );
     return newPromptModal.waitForClose;
   }
@@ -143,6 +147,7 @@ export class GenericInputPrompt extends Modal {
     customComponents?: (container: HTMLElement) => void,
     blockPointerInputOutsideModal?: boolean,
     controlsOnTop?: boolean,
+    draggable?: boolean,
   ) {
     super(app);
     this.view = view;
@@ -155,6 +160,7 @@ export class GenericInputPrompt extends Modal {
     this.customComponents = customComponents;
     this.blockPointerInputOutsideModal = blockPointerInputOutsideModal ?? false;
     this.controlsOnTop = controlsOnTop ?? false;
+    this.draggable = draggable ?? false;
 
     this.waitForClose = new Promise<string>((resolve, reject) => {
       this.resolvePromise = resolve;
@@ -473,12 +479,137 @@ export class GenericInputPrompt extends Modal {
     super.onOpen();
     this.inputComponent.inputEl.focus();
     this.inputComponent.inputEl.select();
+    
+    if (this.draggable) {
+      this.makeModalDraggable();
+    }
+  }
+
+  private makeModalDraggable() {
+    let isDragging = false;
+    let startX: number, startY: number, initialX: number, initialY: number;
+    let activeElement: HTMLElement | null = null;
+    let cursorPosition: { start: number; end: number } | null = null;
+
+    const modalEl = this.modalEl;
+    const header = modalEl.querySelector('.modal-titlebar') || modalEl.querySelector('.modal-title') || modalEl;
+    (header as HTMLElement).style.cursor = 'move';
+
+    // Track focus changes to store the last focused interactive element
+    const onFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'SELECT' || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON')) {
+        activeElement = target;
+        // Store cursor position for input/textarea elements (but not for number inputs)
+        if (target.tagName === 'TEXTAREA' || 
+            (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'number')) {
+          const inputEl = target as HTMLInputElement | HTMLTextAreaElement;
+          cursorPosition = {
+            start: inputEl.selectionStart || 0,
+            end: inputEl.selectionEnd || 0
+          };
+        } else {
+          cursorPosition = null;
+        }
+      }
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Don't allow dragging if clicking on interactive controls
+      if (target.tagName === 'INPUT' || 
+          target.tagName === 'TEXTAREA' || 
+          target.tagName === 'BUTTON' ||
+          target.tagName === 'SELECT' ||
+          target.closest('button') ||
+          target.closest('input') ||
+          target.closest('textarea') ||
+          target.closest('select')) {
+        return;
+      }
+      
+      // Allow dragging from header or modal content areas
+      if (!header.contains(target) && !modalEl.querySelector('.modal-content')?.contains(target)) {
+        return;
+      }
+      
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = modalEl.getBoundingClientRect();
+      initialX = rect.left;
+      initialY = rect.top;
+
+      modalEl.style.position = 'absolute';
+      modalEl.style.margin = '0';
+      modalEl.style.left = `${initialX}px`;
+      modalEl.style.top = `${initialY}px`;
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDragging) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      modalEl.style.left = `${initialX + dx}px`;
+      modalEl.style.top = `${initialY + dy}px`;
+    };
+
+    const onPointerUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+
+      // Restore focus and cursor position
+      if (activeElement && activeElement.isConnected) {
+        // Use setTimeout to ensure the pointer event is fully processed
+        setTimeout(() => {
+          activeElement.focus();
+          
+          // Restore cursor position for input/textarea elements (but not for number inputs)
+          if (cursorPosition && 
+              (activeElement.tagName === 'TEXTAREA' || 
+               (activeElement.tagName === 'INPUT' && (activeElement as HTMLInputElement).type !== 'number'))) {
+            const inputEl = activeElement as HTMLInputElement | HTMLTextAreaElement;
+            inputEl.setSelectionRange(cursorPosition.start, cursorPosition.end);
+          }
+        }, 0);
+      }
+    };
+
+    // Initialize activeElement with the main input field
+    activeElement = this.inputComponent.inputEl;
+    cursorPosition = {
+      start: this.inputComponent.inputEl.selectionStart || 0,
+      end: this.inputComponent.inputEl.selectionEnd || 0
+    };
+
+    // Set up event listeners
+    modalEl.addEventListener('focusin', onFocusIn);
+    modalEl.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+
+    // Store cleanup function for use in onClose
+    this.cleanupDragListeners = () => {
+      modalEl.removeEventListener('focusin', onFocusIn);
+      modalEl.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+    };
   }
 
   onClose() {
     super.onClose();
     this.resolveInput();
     this.removeInputListener();
+    
+    // Clean up drag listeners to prevent memory leaks
+    if (this.cleanupDragListeners) {
+      this.cleanupDragListeners();
+      this.cleanupDragListeners = null;
+    }
   }
 }
 
@@ -661,10 +792,7 @@ export class NewFileActions extends Modal {
         if (!this.path.match(/\.md$/)) {
           this.path = `${this.path}.md`;
         }
-        const folderpath = splitFolderAndFilename(this.path).folderpath;
-        checkAndCreateFolder(folderpath);
-        const f = await this.app.vault.create(this.path, data);
-        return f;
+        return await createOrOverwriteFile(this.app, this.path, data);
       };
 
       if(this.sourceElement) {
@@ -726,17 +854,30 @@ export class NewFileActions extends Modal {
   }
 }
 
-export class ConfirmationPrompt extends Modal {
-  public waitForClose: Promise<boolean>;
-  private resolvePromise: (value: boolean) => void;
+export class MultiOptionConfirmationPrompt extends Modal {
+  public waitForClose: Promise<any>;
+  private resolvePromise: (value: any) => void;
   private rejectPromise: (reason?: any) => void;
-  private didConfirm: boolean = false;
+  private selectedValue: any = null;
   private readonly message: string;
+  private readonly buttons: Map<string, any>;
+  private ctaButtonLabel: string = null;
 
-  constructor(private plugin: ExcalidrawPlugin, message: string) {
+  constructor(private plugin: ExcalidrawPlugin, message: string, buttons?: Map<string, any>, ctaButtonLabel?: string) {
     super(plugin.app);
     this.message = message;
-    this.waitForClose = new Promise<boolean>((resolve, reject) => {
+    if (!buttons || buttons.size === 0) {
+      buttons = new Map<string, any>([
+        [t("PROMPT_BUTTON_CANCEL"), null],
+        [t("PROMPT_BUTTON_OK"), true],
+      ]);
+      if( !ctaButtonLabel) {
+        ctaButtonLabel = t("PROMPT_BUTTON_OK");
+      } 
+    }
+    this.ctaButtonLabel = ctaButtonLabel;
+    this.buttons = buttons;
+    this.waitForClose = new Promise<any>((resolve, reject) => {
       this.resolvePromise = resolve;
       this.rejectPromise = reject;
     });
@@ -756,14 +897,35 @@ export class ConfirmationPrompt extends Modal {
     const buttonContainer = this.contentEl.createDiv();
     buttonContainer.style.display = "flex";
     buttonContainer.style.justifyContent = "flex-end";
+    buttonContainer.style.flexWrap = "wrap";
+    
+    // Convert Map to Array for easier iteration
+    const buttonEntries = Array.from(this.buttons.entries());
 
-    const cancelButton = this.createButton(buttonContainer, t("PROMPT_BUTTON_CANCEL"), this.cancelClickCallback.bind(this));
-    cancelButton.buttonEl.style.marginRight = "0.5rem";
+    // Add buttons in reverse order (last button will be on the right)
+    let ctaButton: HTMLButtonElement = null;
+    buttonEntries.reverse().forEach(([buttonText, value], index) => {
+      const button = this.createButton(buttonContainer, buttonText, () => {
+        this.selectedValue = value;
+        this.close();
+      });
+      
+      if (buttonText === this.ctaButtonLabel) {
+        ctaButton = button.buttonEl;
+        button.setCta();
+      }
+      
+      if (index < buttonEntries.length - 1) {
+        button.buttonEl.style.marginRight = "0.5rem";
+      }
+    });
 
-    const confirmButton = this.createButton(buttonContainer, t("PROMPT_BUTTON_OK"), this.confirmClickCallback.bind(this));
-    confirmButton.buttonEl.style.marginRight = "0";
-
-    cancelButton.buttonEl.focus();
+    // Set focus on the first button (visually last)
+    if(this.ctaButtonLabel) {
+      if (ctaButton) {
+        ctaButton.focus();
+      }
+    }
   }
 
   private createButton(container: HTMLElement, text: string, callback: (evt: MouseEvent) => void) {
@@ -772,16 +934,6 @@ export class ConfirmationPrompt extends Modal {
     return button;
   }
 
-  private cancelClickCallback() {
-    this.didConfirm = false;
-    this.close();
-  };
-
-  private confirmClickCallback() {
-    this.didConfirm = true;
-    this.close();
-  };
-
   onOpen() {
     super.onOpen();
     this.contentEl.querySelector("button")?.focus();
@@ -789,11 +941,7 @@ export class ConfirmationPrompt extends Modal {
 
   onClose() {
     super.onClose();
-    if (!this.didConfirm) {
-      this.resolvePromise(false);
-    } else {
-      this.resolvePromise(true);
-    }
+    this.resolvePromise(this.selectedValue);
   }
 }
 

@@ -44,7 +44,7 @@ export default {
   TRANSCLUDE_MOST_RECENT: "Embed the most recently edited drawing",
   TOGGLE_LEFTHANDED_MODE: "Toggle left-handed mode",
   TOGGLE_SPLASHSCREEN: "Show splash screen in new drawings",
-  FLIP_IMAGE: "Open the back-of-the-note of the selected excalidraw image",
+  FLIP_IMAGE: "Open the back-of-the-note for the selected image in a popout window",
   NEW_IN_NEW_PANE: "Create new drawing - IN AN ADJACENT WINDOW",
   NEW_IN_NEW_TAB: "Create new drawing - IN A NEW TAB",
   NEW_IN_ACTIVE_PANE: "Create new drawing - IN THE CURRENT ACTIVE WINDOW",
@@ -158,7 +158,10 @@ export default {
   CONVERT_FILE: "Convert to new format",
   BACKUP_AVAILABLE: "We encountered an error while loading your drawing. This might have occurred if Obsidian unexpectedly closed during a save operation. For example, if you accidentally closed Obsidian on your mobile device while saving.<br><br><b>GOOD NEWS:</b> Fortunately, a local backup is available. However, please note that if you last modified this drawing on a different device (e.g., tablet) and you are now on your desktop, that other device likely has a more recent backup.<br><br>I recommend trying to open the drawing on your other device first and restore the backup from its local storage.<br><br>Would you like to load the backup?",
   BACKUP_RESTORED: "Backup restored",
-  CACHE_NOT_READY: "I apologize for the inconvenience, but an error occurred while loading your file.<br><br><mark>Having a little patience can save you a lot of time...</mark><br><br>The plugin has a backup cache, but it appears that you have just started Obsidian. Initializing the Backup Cache may take some time, usually up to a minute or more depending on your device's performance. You will receive a notification in the top right corner when the cache initialization is complete.<br><br>Please press OK to attempt loading the file again and check if the cache has finished initializing. If you see a completely empty file behind this message, I recommend waiting until the backup cache is ready before proceeding. Alternatively, you can choose Cancel to manually correct your file.<br>",
+  BACKUP_SAVE_AS_FILE: "This drawing is empty. A non-empty backup is avalable. Would you like to resture it as a new file and open it in a new tab?",
+  BACKUP_SAVE: "Restore",
+  BACKUP_DELETE: "Delete Backup",
+  BACKUP_CANCEL: "Cancel",  CACHE_NOT_READY: "I apologize for the inconvenience, but an error occurred while loading your file.<br><br><mark>Having a little patience can save you a lot of time...</mark><br><br>The plugin has a backup cache, but it appears that you have just started Obsidian. Initializing the Backup Cache may take some time, usually up to a minute or more depending on your device's performance. You will receive a notification in the top right corner when the cache initialization is complete.<br><br>Please press OK to attempt loading the file again and check if the cache has finished initializing. If you see a completely empty file behind this message, I recommend waiting until the backup cache is ready before proceeding. Alternatively, you can choose Cancel to manually correct your file.<br>",
   OBSIDIAN_TOOLS_PANEL: "Obsidian Tools Panel",
   ERROR_SAVING_IMAGE: "Unknown error occurred while fetching the image. It could be that for some reason the image is not available or rejected the fetch request from Obsidian",
   WARNING_PASTING_ELEMENT_AS_TEXT: "PASTING EXCALIDRAW ELEMENTS AS A TEXT ELEMENT IS NOT ALLOWED",
@@ -203,14 +206,22 @@ export default {
   FOLDER_NAME: "Excalidraw folder (CAsE sEnsITive!)",
   FOLDER_DESC:
     "Default location for new drawings. If empty, drawings will be created in the Vault root.",
+  CROP_SUFFIX_NAME: "Crop file suffix",
+  CROP_SUFFIX_DESC:
+    "The last part of the filename for new drawings created when cropping an image. " +
+    "Leave empty if you don't need a sufix.",
   CROP_PREFIX_NAME: "Crop file prefix",
   CROP_PREFIX_DESC:
     "The first part of the filename for new drawings created when cropping an image. " +
-    "If empty the default 'cropped_' will be used.",  
+    "Leave empty if you don't need a prefix.",  
+  ANNOTATE_SUFFIX_NAME: "Annotation file suffix",
+  ANNOTATE_SUFFIX_DESC:
+    "The last part of the filename for new drawings created when annotating an image. " +
+    "Leave empty if you don't need a suffix.",
   ANNOTATE_PREFIX_NAME: "Annotation file prefix",
   ANNOTATE_PREFIX_DESC:
     "The first part of the filename for new drawings created when annotating an image. " +
-    "If empty the default 'annotated_' will be used.",
+    "Leave empty if you don't need a prefix.",
   ANNOTATE_PRESERVE_SIZE_NAME: "Preserve image size when annotating",
   ANNOTATE_PRESERVE_SIZE_DESC:
     "When annotating an image in markdown the replacment image link will include the width of the original image.",
@@ -463,7 +474,7 @@ FILENAME_HEAD: "Filename",
 
   FOCUS_ON_EXISTING_TAB_NAME: "Focus on Existing Tab",
   FOCUS_ON_EXISTING_TAB_DESC: "When opening a link, Excalidraw will focus on the existing tab if the file is already open. " +
-    "Enabling this setting overrides 'Reuse Adjacent Pane' when the file is already open.",
+    "Enabling this setting overrides 'Reuse Adjacent Pane' when the file is already open except for the 'Open the back-of-the-note of the selected excalidraw image' command palette action.",
   SECOND_ORDER_LINKS_NAME: "Show second-order links",
   SECOND_ORDER_LINKS_DESC: "Show links when clicking on a link in Excalidraw. Second-order link are backlinks pointing to the link being clicked. " +
     "When using image icons to connect similar notes, second order links allow you to get to related notes in one click instead of two. " +
@@ -749,7 +760,7 @@ FILENAME_HEAD: "Filename",
     "ExcalidrawAutomate is a scripting and automation API for Excalidraw. Unfortunately, the documentation of the API is sparse. " +
     "I recommend reading the <a href='https://github.com/zsviczian/obsidian-excalidraw-plugin/blob/master/docs/API/ExcalidrawAutomate.d.ts'>ExcalidrawAutomate.d.ts</a> file, " +
     "visiting the <a href='https://zsviczian.github.io/obsidian-excalidraw-plugin/'>ExcalidrawAutomate How-to</a> page - though the information " +
-    "here has not been updated for a long while -, and finally to enable the field suggester below. The field suggester will show you the available " +
+          "here has not been updated for a long while -, and finally to enable the field suggester below. The field suggester will show you the available " +
     "functions, their parameters and short description as you type. The field suggester is the most up-to-date documentation of the API.",
   FIELD_SUGGESTER_NAME: "Enable Field Suggester",
   FIELD_SUGGESTER_DESC:
@@ -910,8 +921,12 @@ FILENAME_HEAD: "Filename",
 
   //IFrameActionsMenu.tsx
   NARROW_TO_HEADING: "Narrow to heading...",
+  PIN_VIEW: "Pin view",
+  DO_NOT_PIN_VIEW: "Do not pin view",
   NARROW_TO_BLOCK: "Narrow to block...",
   SHOW_ENTIRE_FILE: "Show entire file",
+  SELECT_SECTION: "Select section from document",
+  SELECT_VIEW: "Select view from base",
   ZOOM_TO_FIT: "Zoom to fit",
   RELOAD: "Reload original link",
   OPEN_IN_BROWSER: "Open current link in browser",
@@ -991,6 +1006,7 @@ FILENAME_HEAD: "Filename",
 
   //Utils.ts
   UPDATE_AVAILABLE: `A newer version of Excalidraw is available in Community Plugins.\n\nYou are using ${PLUGIN_VERSION}.\nThe latest is`,
+  SCRIPT_UPDATES_AVAILABLE: `Script updates available - check the script store.\n\n${DEVICE.isDesktop ? `This message is available in console.log (${DEVICE.isMacOS ? "CMD+OPT+i" : "CTRL+SHIFT+i"})\n\n` : ""}If you have organized scripts into subfolders under the script store folder and have multiple copies of the same script, you may need to clean up unused versions to clear this alert. For private copies of scripts that should not be updated, store them outside the script store folder.`,
   ERROR_PNG_TOO_LARGE: "Error exporting PNG - PNG too large, try a smaller resolution",
 
   //modifierkeyHelper.ts

@@ -456,12 +456,16 @@ export const updateElementLinksToObsidianLinks = ({elements, hostFile}:{
       }
       let link = EXCALIDRAW_PLUGIN.app.getObsidianUrl(file);
       if(window.ExcalidrawAutomate?.onUpdateElementLinkForExportHook) {
-        link = window.ExcalidrawAutomate.onUpdateElementLinkForExportHook({
-          originalLink: el.link,
-          obsidianLink: link,
-          linkedFile: file,
-          hostFile: hostFile
-       });
+        try {
+          link = window.ExcalidrawAutomate.onUpdateElementLinkForExportHook({
+            originalLink: el.link,
+            obsidianLink: link,
+            linkedFile: file,
+            hostFile: hostFile
+          }) ?? link;
+        } catch (e) {
+          errorlog({where: "excalidrawAutomateUtils.updateElementLinksToObsidianLinks", fn: window.ExcalidrawAutomate.onUpdateElementLinkForExportHook, error: e});
+        }
       }
       const newElement: Mutable<ExcalidrawElement> = cloneElement(el);
       newElement.link = link;
@@ -698,14 +702,14 @@ export const getTextElementsMatchingQuery = (
     el.type === "text" && 
     query.some((q) => {
       if (exactMatch) {
-        const text = el.rawText.toLowerCase().split("\n")[0].trim();
+        const text = el.customData?.text2Path?.text ?? el.rawText.toLowerCase().split("\n")[0].trim();
         const m = text.match(/^#*(# .*)/);
         if (!m || m.length !== 2) {
           return false;
         }
         return m[1] === q.toLowerCase();
       }
-      const text = el.rawText.toLowerCase().replaceAll("\n", " ").trim();
+      const text = el.customData?.text2Path?.text ?? el.rawText.toLowerCase().replaceAll("\n", " ").trim();
       return text.match(q.toLowerCase()); //to distinguish between "# frame" and "# frame 1" https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/530
     }));
 }

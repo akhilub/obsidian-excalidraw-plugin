@@ -1,8 +1,8 @@
 import { RestoredDataState } from "@zsviczian/excalidraw/types/excalidraw/data/restore";
 import { ImportedDataState } from "@zsviczian/excalidraw/types/excalidraw/data/types";
-import { BoundingBox } from "@zsviczian/excalidraw/types/excalidraw/element/bounds";
-import { ElementsMap, ExcalidrawBindableElement, ExcalidrawElement, ExcalidrawFrameElement, ExcalidrawFrameLikeElement, ExcalidrawTextContainer, ExcalidrawTextElement, FontFamilyValues, FontString, NonDeleted, NonDeletedExcalidrawElement, Theme } from "@zsviczian/excalidraw/types/element/src/types";
-import { FontMetadata } from "@zsviczian/excalidraw/types/excalidraw/fonts/FontMetadata";
+import { BoundingBox } from "@zsviczian/excalidraw/types/element/src";
+import { ElementsMap, ExcalidrawBindableElement, ExcalidrawElement, ExcalidrawFrameElement, ExcalidrawFrameLikeElement, ExcalidrawTextContainer, ExcalidrawTextElement, FontFamilyValues, FontString, NonDeleted, NonDeletedExcalidrawElement, OrderedExcalidrawElement, Theme } from "@zsviczian/excalidraw/types/element/src/types";
+import { FontMetadata } from "@zsviczian/excalidraw/types/common/src";
 import { AppState, BinaryFiles, DataURL, GenerateDiagramToCode, Zoom } from "@zsviczian/excalidraw/types/excalidraw/types";
 import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
 import { GlobalPoint } from "@zsviczian/excalidraw/types/math/src/types";
@@ -52,7 +52,7 @@ type EmbeddedLink =
 declare namespace ExcalidrawLib {
   type ElementUpdate<TElement extends ExcalidrawElement> = Omit<
     Partial<TElement>,
-    "id" | "version" | "versionNonce"
+    "id" | "updated"
   >;
 
   type ExportOpts = {
@@ -108,6 +108,7 @@ declare namespace ExcalidrawLib {
 
   function determineFocusDistance(
     element: ExcalidrawBindableElement,
+    elementsMap: ElementsMap,
     a: GlobalPoint,
     b: GlobalPoint,
   ): number;
@@ -145,6 +146,15 @@ declare namespace ExcalidrawLib {
     elements: ExcalidrawElement[],
     elementsMap: ElementsMap,
   ): ExcalidrawElement[][];
+
+  function getFontMetrics(fontFamily: ExcalidrawTextElement["fontFamily"], fontSize?:number): {
+    unitsPerEm: number,
+    ascender: number,
+    descender: number,
+    lineHeight: number,
+    baseline: number,
+    fontString: string
+  }
 
   function measureText(
     text: string,
@@ -221,5 +231,7 @@ declare namespace ExcalidrawLib {
   function safelyParseJSON (json: string): Record<string, any> | null;
   function loadSceneFonts(elements: NonDeletedExcalidrawElement[]): Promise<void>;
   function loadMermaid(): Promise<any>;
+  function syncInvalidIndices(elements: readonly ExcalidrawElement[]): OrderedExcalidrawElement[];
+  function syncMovedIndices(elements: readonly ExcalidrawElement[], movedElements: ElementsMap): OrderedExcalidrawElement[];
 }
 

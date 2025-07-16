@@ -44,7 +44,7 @@ import { initExcalidrawAutomate } from "src/utils/excalidrawAutomateUtils";
 import { around, dedupe } from "monkey-around";
 import { t } from "../lang/helpers";
 import {
-  checkAndCreateFolder,
+  createOrOverwriteFile,
   fileShouldDefaultAsExcalidraw,
   getDrawingFilename,
   getIMGFilename,
@@ -566,7 +566,7 @@ export default class ExcalidrawPlugin extends Plugin {
       }
     }
     this.packageManager.getPackageMap().forEach(({excalidrawLib}) => {
-      (excalidrawLib as typeof ExcalidrawLib).registerLocalFont({metrics: fontMetrics as any, icon: null}, fourthFontDataURL);
+      (excalidrawLib as typeof ExcalidrawLib).registerLocalFont({metrics: fontMetrics as any}, fourthFontDataURL);
     });
     // Add fonts to open Obsidian documents
     for(const ownerDocument of this.getOpenObsidianDocuments()) {
@@ -738,13 +738,7 @@ export default class ExcalidrawPlugin extends Plugin {
             if (!data || data.startsWith("404: Not Found")) {
               return null;
             }
-            if (file) {
-              await this.app.vault.modify(file as TFile, data);
-            } else {
-              await checkAndCreateFolder(folder);
-              file = await this.app.vault.create(localPath, data);
-            }
-            return file;
+            return await createOrOverwriteFile(this.app, file?.path ?? localPath, data);
           };
 
           try {
@@ -894,7 +888,8 @@ export default class ExcalidrawPlugin extends Plugin {
       normalizePath(file.path.substring(0, file.path.lastIndexOf(file.name))),
     );
     log(fname);
-    const result = await this.app.vault.create(
+    const result = await createOrOverwriteFile(
+      this.app,
       fname,
       FRONTMATTER + (await this.fileManager.exportSceneToMD(data, false)),
     );
@@ -1076,6 +1071,10 @@ export default class ExcalidrawPlugin extends Plugin {
 
   public async activeLeafChangeEventHandler (leaf: WorkspaceLeaf) {
     this.eventManager.onActiveLeafChangeHandler(leaf);
+  }
+
+  public setDebounceActiveLeafChangeHandler() {
+    this.eventManager.setDebounceActiveLeafChangeHandler();
   }
 
   public registerHotkeyOverrides() {

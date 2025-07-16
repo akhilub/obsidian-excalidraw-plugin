@@ -44,7 +44,7 @@ export default {
   TRANSCLUDE_MOST_RECENT: "嵌入最近编辑过的绘图（形如 ![[drawing]]）到当前 Markdown 文档中",
   TOGGLE_LEFTHANDED_MODE: "切换为左手模式",
   TOGGLE_SPLASHSCREEN: "在新绘图中显示启动画面",
-  FLIP_IMAGE: "打开当前所选 excalidraw 图像的“背景笔记”",
+  FLIP_IMAGE: "在弹出窗口中打开当前所选图像的“背景笔记”",
   NEW_IN_NEW_PANE: "新建绘图 - 于新面板",
   NEW_IN_NEW_TAB: "新建绘图 - 于新页签",
   NEW_IN_ACTIVE_PANE: "新建绘图 - 于当前面板",
@@ -158,6 +158,8 @@ export default {
   CONVERT_FILE: "转换为新格式",
   BACKUP_AVAILABLE: "加载绘图文件时出错，可能是由于 Obsidian 在上次保存时意外退出了（手机上更容易发生这种意外）。<br><br><b>好消息：</b>这台设备上存在备份。您是否想要恢复本设备上的备份？<br><br>（我建议您先尝试在最近使用过的其他设备上打开该绘图，以检查是否有更新的备份。）",
   BACKUP_RESTORED: "已恢复备份",
+  BACKUP_SAVE_AS_FILE : "此绘图为空，但有一个较大的备份可用。您是否想将其另存为新文件，并在新标签页中打开？" ,
+  DO_YOU_WANT_TO_DELETE_THE_BACKUP : "该备份[未]作为恢复文件保存到您的存储库中。您是否想删除备份数据？" ,
   CACHE_NOT_READY: "抱歉，加载绘图文件时出错。<br><br><mark>现在有耐心，将来更省心。</mark><br><br>该插件有备份机制，但您似乎刚刚打开 Obsidian，需要等待一分钟或更长的时间来读取缓存。缓存读取完毕时，您将会在右上角收到提示。<br><br>请点击 OK 并耐心等待缓存，或者选择点击取消后手动修复你的文件。<br>",
   OBSIDIAN_TOOLS_PANEL: "Obsidian 工具面板",
   ERROR_SAVING_IMAGE: "获取图像时发生未知错误。可能是由于某种原因，图像不可用或拒绝了 Obsidian 的获取请求。",
@@ -203,14 +205,22 @@ export default {
   FOLDER_NAME: "Excalidraw 文件夹（區分大小寫！）",
   FOLDER_DESC:
     "新绘图的默认存储路径。若为空，将在库的根目录中创建新绘图。",
+  CROP_SUFFIX_NAME : "裁剪文件后缀" ,
+  CROP_SUFFIX_DESC :
+    "为裁剪图像时创建的新图纸文件名的最后部分。" +
+    "如果不需要后缀，请留空。" ,
   CROP_PREFIX_NAME: "剪贴文件的前缀",
   CROP_PREFIX_DESC:
     "当剪贴图片进来时保存的文件名的前缀。 " +
-    "留空则使用 'cropped_'",
+    "如果不需要前缀，请留空。" ,
+  ANNOTATE_SUFFIX_NAME : "注释文件后缀" ,
+  ANNOTATE_SUFFIX_DESC :
+    "为注释图像时创建的新绘图文件名的最后部分。" +
+    "如果不需要后缀，请留空。" ,
   ANNOTATE_PREFIX_NAME: "标注文件的前缀",
   ANNOTATE_PREFIX_DESC:
     "在标注图像时创建新绘图的文件名的第一部分。" +
-    "留空则使用'annotated_'",
+    "如果不需要前缀，请留空。" ,
   ANNOTATE_PRESERVE_SIZE_NAME: "在标注时保留图像尺寸",
   ANNOTATE_PRESERVE_SIZE_DESC:
     "当在 Markdown 中标注图像时，替换后的图像链接将包含原始图像的宽度。",
@@ -463,7 +473,7 @@ FILENAME_HEAD: "文件名",
 
   FOCUS_ON_EXISTING_TAB_NAME: "聚焦于当前标签页",
   FOCUS_ON_EXISTING_TAB_DESC: "当打开一个链接时，如果该文件已经打开，Excalidraw 将会聚焦到现有的标签页上 " +
-    "启用这个设置会在文件已经打开的情况下覆盖“重用相邻窗格”的设置。",
+    "启用此设置时，如果文件已打开，将覆盖“重用相邻窗格”，但“打开所选 Excalidraw 图像的背影笔记”命令面板操作除外。",
   SECOND_ORDER_LINKS_NAME: "显示二级链接",
   SECOND_ORDER_LINKS_DESC: "在 Excalidraw 中点击链接时显示链接。二级链接是指指向被点击链接的反向链接" +
     "当使用图标连接相似的笔记时，二级链接可以让你直接到达相关笔记，而不需要两次点击。" +
@@ -991,6 +1001,7 @@ FILENAME_HEAD: "文件名",
 
   //Utils.ts
   UPDATE_AVAILABLE: `Excalidraw 的新版本已在社区插件中可用。\n\n您正在使用 ${PLUGIN_VERSION}。\n最新版本是`,
+  SCRIPT_UPDATES_AVAILABLE : `脚本更新可用 - 请检查脚本存储。\n\n ${ DEVICE . isDesktop ? `此消息可在控制台日志中查看 ( ${ DEVICE . isMacOS ? "CMD+OPT+i" : "CTRL+SHIFT+i" } )\n\n` : "" } 如果您已将脚本组织到脚本存储文件夹下的子文件夹中，并且存在同一脚本的多个副本，可能需要清理未使用的版本以消除此警报。对于不需要更新的私人脚本副本，请将它们存储在脚本存储文件夹之外。` ,
   ERROR_PNG_TOO_LARGE: "导出 PNG 时出错 - PNG 文件过大，请尝试较小的分辨率",
 
   // ModifierkeyHelper.ts

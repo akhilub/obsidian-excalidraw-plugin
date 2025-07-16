@@ -47,16 +47,15 @@ import {
 } from "@zsviczian/excalidraw/types/element/src/types";
 import { BinaryFiles, DataURL, SceneData } from "@zsviczian/excalidraw/types/excalidraw/types";
 import { EmbeddedFile, MimeType } from "./EmbeddedFileLoader";
-import { ConfirmationPrompt } from "./Dialogs/Prompt";
+import { MultiOptionConfirmationPrompt } from "./Dialogs/Prompt";
 import { getMermaidImageElements, getMermaidText, shouldRenderMermaid } from "../utils/mermaidUtils";
 import { DEBUGGING, debug } from "../utils/debugHelper";
 import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
 import { updateElementIdsInScene } from "../utils/excalidrawSceneUtils";
-import { checkAndCreateFolder, getNewUniqueFilepath, splitFolderAndFilename } from "../utils/fileUtils";
+import {  importFileToVault } from "../utils/fileUtils";
 import { t } from "../lang/helpers";
 import { displayFontMessage } from "../utils/excalidrawViewUtils";
 import { getPDFRect } from "../utils/PDFUtils";
-import { create } from "domain";
 
 type SceneDataWithFiles = SceneData & { files: BinaryFiles };
 
@@ -793,7 +792,7 @@ export class ExcalidrawData {
 
     //once off migration of legacy scenes
     if(this.scene?.elements?.some((el:any)=>el.type==="iframe" && !el.customData)) {
-        const prompt = new ConfirmationPrompt(
+        const prompt = new MultiOptionConfirmationPrompt(
           this.plugin,
           "This file contains embedded frames " +
           "which will be migrated to a newer version for compatibility with " +
@@ -1547,37 +1546,15 @@ export class ExcalidrawData {
       }
     }
 
-    let hookFilepath:string;
-    const ea = this.view?.getHookServer();
-    if(ea?.onImageFilePathHook) {
-      hookFilepath = ea.onImageFilePathHook({
-        currentImageName: fname,
-        drawingFilePath: this.view?.file?.path,
-      })
-    }
-
-    let filepath:string;
-    if(hookFilepath) {
-      const {folderpath, filename} = splitFolderAndFilename(hookFilepath);
-      await checkAndCreateFolder(folderpath);
-      filepath = getNewUniqueFilepath(this.app.vault,filename,folderpath);
-    } else {
-      const x = await getAttachmentsFolderAndFilePath(this.app, this.file.path, fname);
-      filepath = getNewUniqueFilepath(this.app.vault,fname,x.folder);
-    }
-
     const arrayBuffer = await getBinaryFileFromDataURL(dataURL);
     if(!arrayBuffer) return null;
 
-    const file = await this.app.vault.createBinary(
-      filepath,
-      arrayBuffer,
-    );
+    const file = await importFileToVault(this.app, fname, arrayBuffer, this.file, this.view);
 
     const embeddedFile = new EmbeddedFile(
       this.plugin,
       this.file.path,
-      filepath,
+      file.path,
     );
     
     embeddedFile.setImage({
