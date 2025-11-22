@@ -8,7 +8,7 @@ import {
 } from "@zsviczian/excalidraw/types/element/src/types";
 import { normalizePath, TFile } from "obsidian";
 
-import ExcalidrawView, { ExportSettings, getTextMode } from "src/view/ExcalidrawView";
+import ExcalidrawView, { getTextMode } from "src/view/ExcalidrawView";
 import {
   GITHUB_RELEASES,
   getCommonBoundingBox,
@@ -37,11 +37,14 @@ import {
   postOpenAI as _postOpenAI,
   extractCodeBlocks as _extractCodeBlocks,
 } from "../utils/AIUtils";
-import { ColorMap, EmbeddedFilesLoader, FileData } from "src/shared/EmbeddedFileLoader";
+import { EmbeddedFilesLoader } from "src/shared/EmbeddedFileLoader";
 import { SVGColorInfo } from "src/types/excalidrawAutomateTypes";
 import { ExcalidrawData, getExcalidrawMarkdownHeaderSection, REGEX_LINK } from "src/shared/ExcalidrawData";
 import { getFrameBasedOnFrameNameOrId } from "./excalidrawViewUtils";
 import { ScriptEngine } from "src/shared/Scripts";
+import { getEA } from "src/core";
+import { ColorMap, FileData } from "src/types/embeddedFileLoaderTypes";
+import { ExportSettings } from "src/types/exportUtilTypes";
 
 declare const PLUGIN_VERSION:string;
 
@@ -149,7 +152,7 @@ export function errorMessage(message: string, source: string):void {
 
 export function isColorStringTransparent(color: string): boolean {
   const rgbaHslaTransparentRegex = /^(rgba|hsla)\(.*?,.*?,.*?,\s*0(\.0+)?\)$/i;
-  const hexTransparentRegex = /^#[a-fA-F0-9]{8}00$/i;
+  const hexTransparentRegex = /^#[a-fA-F0-9]{6}00$/i;
 
   return rgbaHslaTransparentRegex.test(color) || hexTransparentRegex.test(color);
 }
@@ -280,10 +283,17 @@ export async function getTemplate(
       }
     }
     if(filenameParts.hasFrameref || filenameParts.hasClippedFrameref) {
-      const el = getFrameBasedOnFrameNameOrId(filenameParts.blockref,scene.elements);     
-      
+      const el = getFrameBasedOnFrameNameOrId(filenameParts.blockref,scene.elements);
       if(el) {
-        groupElements = plugin.ea.getElementsInFrame(el,scene.elements, filenameParts.hasClippedFrameref);
+        groupElements = el.frameRole === "marker"
+        ? plugin.ea.getElementsInArea(scene.elements, el).concat(el)
+        : plugin.ea.getElementsInFrame(el,scene.elements, filenameParts.hasClippedFrameref);
+      }
+    }
+    if(filenameParts.hasArearef) {
+      const el=scene.elements.find((el: ExcalidrawElement)=>el.id===filenameParts.blockref);
+      if(el) {
+        groupElements = plugin.ea.getElementsInArea(scene.elements, el);
       }
     }
 
@@ -551,13 +561,21 @@ export async function createSVG(
   if (withTheme && theme === "dark") addFilterToForeignObjects(svg);
 
   if(
-    !(filenameParts.hasGroupref || filenameParts.hasFrameref || filenameParts.hasClippedFrameref) && 
+    !(filenameParts.hasGroupref || filenameParts.hasClippedFrameref) && 
     (filenameParts.hasBlockref || filenameParts.hasSectionref)
   ) {
     let el = filenameParts.hasSectionref
       ? getTextElementsMatchingQuery(elements,["# "+filenameParts.sectionref],true)
       : elements.filter((el: ExcalidrawElement)=>el.id===filenameParts.blockref);
-    if(el.length>0) {
+    if(el.length === 0 && filenameParts.hasFrameref) {
+      const frame = getFrameBasedOnFrameNameOrId(filenameParts.blockref, elements);
+      if(frame) {
+        el = [frame];
+      }
+    }
+    const isNonMarkerFrameRef = filenameParts.hasFrameref && el.length === 1 && el[0].type === "frame" && el[0].frameRole !== "marker";
+
+    if(el.length>0 && !isNonMarkerFrameRef) {
       const containerId = el[0].containerId;
       if(containerId) {
         el = el.concat(elements.filter((el: ExcalidrawElement)=>el.id === containerId));
@@ -628,9 +646,9 @@ export function repositionElementsToCursor(
   return restore({elements}, null, null).elements;
 }
 
-export const insertLaTeXToView = (view: ExcalidrawView) => {
+export const insertLaTeXToView = (view: ExcalidrawView, center: boolean = false) => {
   const app = view.plugin.app;
-  const ea = view.plugin.ea;
+  const ea = getEA(view) as ExcalidrawAutomate;
   GenericInputPrompt.Prompt(
     view,
     view.plugin,
@@ -641,13 +659,19 @@ export const insertLaTeXToView = (view: ExcalidrawView) => {
     undefined,
     3
   ).then(async (formula: string) => {
-    if (!formula) {
-      return;
+    if (formula) {
+      const id = await ea.addLaTex(0, 0, formula);
+      if(center) {
+        const el = ea.getElement(id);
+        let {width, height} = el;
+        let {x, y} = ea.getViewCenterPosition();
+        el.x = x - width / 2;
+        el.y = y - height / 2;
+      }
+      await ea.addElementsToView(!center, false, true);
+      ea.selectElementsInView([id]);
     }
-    ea.reset();
-    await ea.addLaTex(0, 0, formula);
-    ea.setView(view);
-    ea.addElementsToView(true, false, true);
+    ea.destroy();
   });
 };
 

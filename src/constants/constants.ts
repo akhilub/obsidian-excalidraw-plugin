@@ -79,7 +79,7 @@ export const obsidianToExcalidrawMap: { [key: string]: string } = {
   'ur': 'ur-PK', // Assuming Pakistan for Urdu
   'vi': 'vi-VN',
   'zh': 'zh-CN',
-  'zh-TW': 'zh-TW',
+  'zh-tw': 'zh-TW',
 };
 
 
@@ -234,9 +234,10 @@ export const IMAGE_TYPES = ["jpeg", "jpg", "png", "gif", "svg", "webp", "bmp", "
 export const ANIMATED_IMAGE_TYPES = ["gif", "webp", "apng", "svg"];
 export const EXPORT_TYPES = ["svg", "dark.svg", "light.svg", "png", "dark.png", "light.png"];
 export const MAX_IMAGE_SIZE = 500;
-
-export const VIDEO_TYPES = ["mp4", "webm", "ogv", "mov", "mkv"];
-export const AUDIO_TYPES = ["mp3", "wav", "m4a", "3gp", "flac", "ogg", "oga", "opus"];
+export const CARD_WIDTH = 400;
+export const CARD_HEIGHT = 500;
+export const VIDEO_TYPES = ["mp4","webm","ogv","mov","mkv","avi","m4v","wmv"];
+export const AUDIO_TYPES = ["mp3","wav", "m4a", "3gp", "flac", "ogg", "oga", "opus", "aac", "aiff", "aif", "mid", "midi"];
 export const CODE_TYPES = ["json", "css", "js"];
 
 export const FRONTMATTER_KEYS:{[key:string]: {name: string, type: string, depricated?:boolean}} = {
@@ -262,6 +263,7 @@ export const FRONTMATTER_KEYS:{[key:string]: {name: string, type: string, depric
   "iframe-theme": {name: "excalidraw-iframe-theme", type: "text", depricated: true},
   "embeddable-theme": {name: "excalidraw-embeddable-theme", type: "text"},
   "open-as-markdown": {name: "excalidraw-open-md", type: "checkbox"},
+  "embed-as-markdown": {name: "excalidraw-embed-md", type: "checkbox"},
 };
 
 export const CaptureUpdateAction = {

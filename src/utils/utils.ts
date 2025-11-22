@@ -20,21 +20,23 @@ import {
 } from "../constants/constants";
 import ExcalidrawPlugin from "../core/main";
 import { ExcalidrawElement, ExcalidrawImageElement, ExcalidrawTextElement, ImageCrop } from "@zsviczian/excalidraw/types/element/src/types";
-import { ExportSettings } from "../view/ExcalidrawView";
 import { getDataURLFromURL, getIMGFilename, getMimeType, getURLImageExtension } from "./fileUtils";
 import { generateEmbeddableLink } from "./customEmbeddableUtils";
 import { FILENAMEPARTS } from "../types/utilTypes";
 import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
-import { cleanBlockRef, cleanSectionHeading, getFileCSSClasses } from "./obsidianUtils";
+import { cleanBlockRef, cleanSectionHeading, getExcalidrawViews, getFileCSSClasses } from "./obsidianUtils";
 import { updateElementLinksToObsidianLinks } from "./excalidrawAutomateUtils";
 import { CropImage } from "../shared/CropImage";
 import opentype from 'opentype.js';
 import { runCompressionWorker } from "src/shared/Workers/compression-worker";
 import Pool from "es6-promise-pool";
-import { FileData } from "../shared/EmbeddedFileLoader";
 import { t } from "src/lang/helpers";
-import ExcalidrawScene from "src/shared/svgToExcalidraw/elements/ExcalidrawScene";
 import { log } from "./debugHelper";
+import { VersionMismatchPrompt } from "src/shared/Dialogs/VersionMismatch";
+import { ExcalidrawSettings } from "src/core/settings";
+import { FileData } from "src/types/embeddedFileLoaderTypes";
+import { ExportSettings } from "src/types/exportUtilTypes";
+import { UIMode } from "src/shared/Dialogs/UIModeSettingComponent";
 
 declare const PLUGIN_VERSION:string;
 declare var LZString: any;
@@ -47,9 +49,24 @@ declare module "obsidian" {
     ): WorkspaceLeaf;
   }
   interface Vault {
-    getConfig(option: "attachmentFolderPath"): string;
+    getAvailablePathForAttachments(filename: string, extension: string, file: TFile | null): Promise<string>
   }
 }
+
+let versionMismatchChecked = false;
+export async function checkVersionMismatch(plugin: ExcalidrawPlugin) {
+  if (!versionMismatchChecked && plugin.manifest.version !== PLUGIN_VERSION) {
+    versionMismatchChecked = true;
+    const versionMismatchPrompt = new VersionMismatchPrompt(plugin);
+    const result = await versionMismatchPrompt.start();
+    if(result) {
+      plugin.manifest.version = PLUGIN_VERSION;
+      await plugin.app.setting.open();
+      plugin.app.setting.openTabById("community-plugins");
+    }
+  }
+};
+
 
 export let versionUpdateCheckTimer: number = null;
 let versionUpdateChecked = false;
@@ -589,7 +606,12 @@ export function scaleLoadedImage (
 export function setDocLeftHandedMode(isLeftHanded: boolean, ownerDocument:Document) {
   const newStylesheet = ownerDocument.createElement("style");
   newStylesheet.id = "excalidraw-left-handed";
-  newStylesheet.textContent = `.excalidraw .App-bottom-bar{justify-content:flex-end;}`;
+  newStylesheet.textContent = `.excalidraw .App-bottom-bar {
+    justify-content:flex-end !important;
+    left: auto !important;
+    right: 0 !important;
+    transform: none !important;
+  }`;
   const oldStylesheet = ownerDocument.getElementById(newStylesheet.id);
   if (oldStylesheet) {
     ownerDocument.head.removeChild(oldStylesheet);
@@ -600,6 +622,7 @@ export function setDocLeftHandedMode(isLeftHanded: boolean, ownerDocument:Docume
 }
 
 export function setLeftHandedMode (isLeftHanded: boolean) {
+  if(DEVICE.isPhone) return; //no lefthanded mode on phones
   const visitedDocs = new Set<Document>();
   EXCALIDRAW_PLUGIN.app.workspace.iterateAllLeaves((leaf) => {
     const ownerDocument = DEVICE.isMobile?document:leaf.view.containerEl.ownerDocument;
@@ -608,6 +631,21 @@ export function setLeftHandedMode (isLeftHanded: boolean) {
     visitedDocs.add(ownerDocument);
     setDocLeftHandedMode(isLeftHanded,ownerDocument);
   })  
+};
+
+export function calculateUIModeValue(settings: ExcalidrawSettings): UIMode {
+  return DEVICE.isPhone
+  ? "phone"
+  : DEVICE.isTablet
+  ? settings.tabletUIMode
+  : DEVICE.isDesktop
+  ? settings.desktopUIMode
+  : "tray";
+}
+
+export function setUIMode(app: App, settings: ExcalidrawSettings) {
+  const uiMode = calculateUIModeValue(settings);
+  getExcalidrawViews(app).forEach((view) => view.setUIMode(uiMode));
 };
 
 export type LinkParts = {
@@ -625,6 +663,8 @@ export function getLinkParts (fname: string, file?: TFile): LinkParts {
   const REG = /(^[^#\|]*)#?(\^)?([^\|]*)?\|?(\d*)x?(\d*)/;
   const parts = fname.match(REG);
   const isBlockRef = parts[2] === "^";
+  let page = parseInt(parts[3]?.match(/page=(\d*)/)?.[1]);
+  page = isNaN(page) ? null : page;
   return {
     original: fname,
     path: file && (parts[1] === "") ? file.path : parts[1],
@@ -634,7 +674,7 @@ export function getLinkParts (fname: string, file?: TFile): LinkParts {
       : isBlockRef ? cleanBlockRef(parts[3]) : cleanSectionHeading(parts[3]),
     width: parts[4] ? parseInt(parts[4]) : undefined,
     height: parts[5] ? parseInt(parts[5]) : undefined,
-    page: parseInt(parts[3]?.match(/page=(\d*)/)?.[1])
+    page,
   };
 };
 
@@ -1055,16 +1095,24 @@ export function escapeRegExp (str:string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
-export function addIframe (containerEl: HTMLElement, link:string, startAt?: number, style:string = "settings") {
-  const wrapper = containerEl.createDiv({cls: `excalidraw-videoWrapper ${style}`})
-  wrapper.createEl("iframe", {
+export function addYouTubeThumbnail (containerEl: HTMLElement, link:string, startAt?: number, style:string = "settings") {
+  const wrapper = containerEl.createDiv({cls: `excalidraw-videoWrapper ${style}`});
+  
+  const thumbnailUrl = `https://i.ytimg.com/vi/${link}/maxresdefault.jpg`;
+  
+  const anchor = wrapper.createEl("a", {
     attr: {
-      allowfullscreen: true,
-      allow: "encrypted-media;picture-in-picture",
-      frameborder: "0",
-      title: "YouTube video player",
-      src: "https://www.youtube.com/embed/" + link + (startAt ? "?start=" + startAt : ""),
-      sandbox: "allow-forms allow-presentation allow-same-origin allow-scripts allow-modals",
+      href: "https://www.youtube.com/watch?v=" + link + (startAt ? "&t=" + startAt : ""),
+      target: "_blank",
+      rel: "noopener noreferrer",
+    },
+  });
+  
+  anchor.createEl("img", {
+    attr: {
+      src: thumbnailUrl || `https://i.ytimg.com/vi/${link}/default.jpg`,
+      alt: "YouTube video thumbnail",
+      style: "width: 100%; height: auto; cursor: pointer;",
     },
   });
 }

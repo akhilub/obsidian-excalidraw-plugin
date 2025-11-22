@@ -1,17 +1,17 @@
 import { DataURL } from "@zsviczian/excalidraw/types/excalidraw/types";
 import { App, loadPdfJs, MetadataCache, normalizePath, Notice, requestUrl, RequestUrlResponse, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import { DEVICE, EXCALIDRAW_PLUGIN, FRONTMATTER_KEYS, URLFETCHTIMEOUT } from "src/constants/constants";
-import { IMAGE_MIME_TYPES, MimeType } from "../shared/EmbeddedFileLoader";
 import { ExcalidrawSettings } from "src/core/settings";
 import { errorlog, getDataURL } from "./utils";
 import ExcalidrawPlugin from "src/core/main";
 import { getAttachmentsFolderAndFilePath } from "./obsidianUtils";
 import ExcalidrawView from "src/view/ExcalidrawView";
+import { IMAGE_MIME_TYPES, MimeType } from "src/types/embeddedFileLoaderTypes";
 
 /**
  * Splits a full path including a folderpath and a filename into separate folderpath and filename components
  * @param filepath
- * @returns folderpath will be normalized. This means "/" for root folder and no trailing "/" for other folders
+ * @returns returns "" for root folder and normalized path for subfolders (no trailing "/", e.g. "folder/subfolder")
  */
 type ImageExtension = keyof typeof IMAGE_MIME_TYPES;
 
@@ -23,11 +23,13 @@ export function splitFolderAndFilename(filepath: string): {
 } {
   const lastIndex = filepath.lastIndexOf("/");
   const filename = lastIndex == -1 ? filepath : filepath.substring(lastIndex + 1);
+  const lastDotIndex = filename.lastIndexOf(".");
+  const folderpath = filepath.substring(0, lastIndex);
   return {
-    folderpath: normalizePath(filepath.substring(0, lastIndex)),
+    folderpath: folderpath ? normalizePath(folderpath) : "",
     filename,
     basename: filename.replace(/\.[^/.]+$/, ""),
-    extension: filename.substring(filename.lastIndexOf(".") + 1),
+    extension: lastDotIndex > 0 ? filename.substring(lastDotIndex + 1) : "",
   };
 }
 
@@ -540,7 +542,7 @@ export async function importFileToVault(app: App, fname: string, content: string
 
 export async function createOrOverwriteFile(app: App, path: string, content: string | ArrayBuffer | Blob): Promise<TFile> {
   const {folderpath} = splitFolderAndFilename(path);
-  if(folderpath && folderpath !== "/") {
+  if(folderpath) {
     await checkAndCreateFolder(folderpath);
   }
   const file = app.vault.getAbstractFileByPath(normalizePath(path));

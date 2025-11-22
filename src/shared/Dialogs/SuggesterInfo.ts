@@ -32,6 +32,12 @@ export const EXCALIDRAW_AUTOMATE_INFO: SuggesterInfo[] = [
     after: "",
   },
   {
+    field: "FloatingModal",
+    code: null,
+    desc: "A modified version of the Obsidian.Modal class that allows the modal to be dragged around the screen and that does not dim the background.",
+    after: "",
+  },
+  {
     field: "elementsDict",
     code: null,
     desc: "The {} dictionary object, contains the ExcalidrawElements currently edited in Automate indexed by el.id",
@@ -606,6 +612,12 @@ export const EXCALIDRAW_AUTOMATE_INFO: SuggesterInfo[] = [
     after: "",
   },
   {
+    field: "getElementsInArea",
+    code: "getElementsInArea(elements: ExcalidrawElement[], area: {x: number, y: number, width: number, height: number}): ExcalidrawElement[];",
+    desc: "Filter the elements and returns only those within the specific area.",
+    after: "",
+  },
+  {
     field: "getBoundingBox",
     code: "getBoundingBox(elements: ExcalidrawElement[]): {topX: number, topY: number, width: number, height: number,};",
     desc: "Gets the bounding box of elements. The bounding box is the box encapsulating all of the elements completely.",
@@ -807,17 +819,23 @@ export const EXCALIDRAW_AUTOMATE_INFO: SuggesterInfo[] = [
   },
   {
     field: "getActiveEmbeddableViewOrEditor",
-    code: "getActiveEmbeddableViewOrEditor(view?: ExcalidrawView);",
+    code: "getActiveEmbeddableViewOrEditor (view?:ExcalidrawView): {view:any}|{file:TFile, editor:Editor}|{node: ObsidianCanvasNode}|null;",
     desc: "Returns the editor or leaf.view of the currently active embedded obsidian file.<br>" +
     "If view is not provided, ea.targetView is used.<br>" +
-    "If the embedded file is a markdown document the function will return<br>" +
-    "<code>{file:TFile, editor:Editor}</code> otherwise it will return {view:any}. You can check view type with view.getViewType();",
+    "If the embedded file is an eligible Obsidian canvas node document the function will return<br>" +
+    "<code>{file:TFile, editor:Editor}</code> of {node: ObsidianCanvasNode}, otherwise it will return {view:any}. You can check view type with view.getViewType();",
     after: "",
   },
   {
     field: "getViewLastPointerPosition",
     code: "getViewLastPointerPosition(): {x: number, y: number};",
     desc: "@returns the last recorded pointer position on the Excalidraw canvas",
+    after: "",
+  },
+  {
+    field: "getViewCenterPosition",
+    code: "getViewCenterPosition(): {x: number, y: number};",
+    desc: "@returns the center position of the current view in Excalidraw coordinates",
     after: "",
   },
   {
@@ -961,7 +979,7 @@ export const FRONTMATTER_KEYS_INFO: SuggesterInfo[] = [
   {
     field: "plugin",
     code: null,
-    desc: "Denotes an excalidraw file. If key is not present, the file will not be recognized as an Excalidarw file. Valid values are 'parsed' and 'raw'",
+    desc: "Denotes an excalidraw file. If key is not present, the file will not be recognized as an Excalidraw file. Valid values are 'parsed' and 'raw'",
     after: ": parsed",
   },
   {
@@ -1059,6 +1077,13 @@ export const FRONTMATTER_KEYS_INFO: SuggesterInfo[] = [
     field: "open-md",
     code: null,
     desc: "If this key is present the file will be opened as a markdown file in the editor",
+    after: ": true",
+  },
+  {
+    field: "embed-md",
+    code: null,
+    desc: "If this key is present, when embedding the ![[image]] into a markdown document, it will be embedded as markdown, not as an image.\n" +
+      "If however you embed ![[image#^as-image]], i.e. you reference the 'as-image' block, then the image will be embedded as an image.",
     after: ": true",
   },
   {

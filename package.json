@@ -16,14 +16,15 @@
     "build:mathjax": "cd MathjaxToSVG && npm run build",
     "build:all": "npm run build:mathjax && npm run build",
     "dev:mathjax": "cd MathjaxToSVG && npm run dev",
-    "dev:all": "npm run dev:mathjax && npm run dev"
+    "dev:all": "npm run dev:mathjax && npm run dev",
+    "doc": "npm run lib && node scripts/generate-script-library.js"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@popperjs/core": "^2.11.8",
-    "@zsviczian/excalidraw": "0.18.0-25",
+    "@zsviczian/excalidraw": "0.18.0-52",
     "chroma-js": "^3.1.2",
     "clsx": "^2.0.0",
     "@zsviczian/colormaster": "^1.2.2",
@@ -73,7 +74,7 @@
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
     "lz-string": "^1.5.0",
-    "obsidian": "^1.7.2",
+    "obsidian": "^1.10.0",
     "prettier": "^3.0.1",
     "rollup": "^2.70.1",
     "rollup-plugin-copy": "^3.5.0",

@@ -19,6 +19,7 @@ import { UniversalInsertFileModal } from "src/shared/Dialogs/UniversalInsertFile
 import { DEBUGGING, debug } from "src/utils/debugHelper";
 import { REM_VALUE } from "src/core/managers/StylesManager";
 import { getExcalidrawViews } from "src/utils/obsidianUtils";
+import { UIModeSettings } from "src/shared/Dialogs/UIModeSettings";
 
 declare const PLUGIN_VERSION:string;
 
@@ -232,7 +233,8 @@ export class ToolsPanel extends React.Component<PanelProps, PanelState> {
   }
 
   actionToggleTrayMode() {
-    this.view.toggleTrayMode();
+    const uiModeSettings = new UIModeSettings(this.view.plugin);
+    uiModeSettings.open();
   }
 
   actionToggleFullscreen() {
@@ -498,7 +500,7 @@ export class ToolsPanel extends React.Component<PanelProps, PanelState> {
               <fieldset>
                 <legend>Utility actions</legend>
                 <div className="buttonList buttonListIcon">
-                <ActionButton
+                  <ActionButton
                     key={"scriptEngine"}
                     title={t("INSTALL_SCRIPT_BUTTON")}
                     action={this.actionOpenScriptInstallDialog.bind(this)}
@@ -517,7 +519,7 @@ export class ToolsPanel extends React.Component<PanelProps, PanelState> {
                       action={(this.actionConvertExcalidrawToMD.bind(this))}
                       icon={ICONS.convertFile}
                     />
-                  ) : (
+                  ) : !this.state.isPreviewMode && (
                     <ActionButton
                       key={"viewmode"}
                       title={this.state.isPreviewMode ? t("PARSED") : t("RAW")}
@@ -530,8 +532,8 @@ export class ToolsPanel extends React.Component<PanelProps, PanelState> {
                     />
                   )}
                   <ActionButton
-                    key={"tray-mode"}
-                    title={t("TRAY_MODE")}
+                    key={"ui-mode"}
+                    title={t("UI_MODE")}
                     action={this.actionToggleTrayMode.bind(this)}
                     icon={ICONS.trayMode}
                   />
@@ -549,6 +551,8 @@ export class ToolsPanel extends React.Component<PanelProps, PanelState> {
                         : ICONS.gotoFullScreen
                     }
                   />
+                </div>
+                <div className="buttonList buttonListIcon">
                   <ActionButton
                     key={"search"}
                     title={t("SEARCH")}

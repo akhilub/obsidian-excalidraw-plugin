@@ -13,10 +13,10 @@ import {
   ExcalidrawFrameElement,
   ExcalidrawTextContainer,
 } from "@zsviczian/excalidraw/types/element/src/types";
-import { ColorMap, MimeType } from "./EmbeddedFileLoader";
+import { ColorMap, MimeType } from "../types/embeddedFileLoaderTypes";
 import { Editor,  Notice, OpenViewState, RequestUrlResponse, TFile, TFolder, WorkspaceLeaf } from "obsidian";
 import * as obsidian_module from "obsidian";
-import ExcalidrawView, { ExportSettings, TextMode } from "src/view/ExcalidrawView";
+import ExcalidrawView, { TextMode } from "src/view/ExcalidrawView";
 import { ExcalidrawData, getMarkdownDrawingSection } from "./ExcalidrawData";
 import {
   FRONTMATTER,
@@ -73,7 +73,6 @@ import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
 import PolyBool from "polybooljs";
 import { EmbeddableMDCustomProps } from "./Dialogs/EmbeddableSettings";
 import {
-  AIRequest,
   postOpenAI as _postOpenAI,
   extractCodeBlocks as _extractCodeBlocks,
 } from "../utils/AIUtils";
@@ -84,10 +83,15 @@ import { ExcalidrawLib } from "../types/excalidrawLib";
 import { GlobalPoint } from "@zsviczian/excalidraw/types/math/src/types";
 import { AddImageOptions, ImageInfo, SVGColorInfo } from "src/types/excalidrawAutomateTypes";
 import { _measureText, cloneElement, createPNG, createSVG, errorMessage, filterColorMap, getEmbeddedFileForImageElment, getFontFamily, getLineBox, getTemplate, isColorStringTransparent, isSVGColorInfo, mergeColorMapIntoSVGColorInfo, normalizeLinePoints, repositionElementsToCursor, svgColorInfoToColorMap, updateOrAddSVGColorInfo, verifyMinimumPluginVersion } from "src/utils/excalidrawAutomateUtils";
-import { exportToPDF, getMarginValue, getPageDimensions, PageDimensions, PageOrientation, PageSize, PDFExportScale, PDFPageProperties } from "src/utils/exportUtils";
+import { exportToPDF, getMarginValue, getPageDimensions } from "src/utils/exportUtils";
+import { PageDimensions, PageOrientation, PageSize, PDFExportScale, PDFPageProperties, ExportSettings} from "src/types/exportUtilTypes";
 import { FrameRenderingOptions } from "src/types/utilTypes";
 import { CaptureUpdateAction } from "src/constants/constants";
 import { AutoexportConfig } from "src/types/excalidrawViewTypes";
+import { FloatingModal } from "./Dialogs/FloatingModal";
+import { patchMobileView } from "src/utils/customEmbeddableUtils";
+import { ObsidianCanvasNode } from "src/view/managers/CanvasNodeFactory";
+import { AIRequest } from "src/types/AIUtilTypes";
 
 extendPlugins([
   HarmonyPlugin,
@@ -144,7 +148,8 @@ const GAP = 4;
  * you may access this object via the variable `ea`. e.g. ea.addImage(); This ea object is already set to the targetView.
  * Through ea.obsidian all of the Obsidian API is available to the script. Thus you can create modal views, open files, etc.
  * You can access Obsidian type definitions here: https://github.com/obsidianmd/obsidian-api/blob/master/obsidian.d.ts
- * In addition to the ea object, the script also receives the `utils` object. utils includes to utility functions: suggester and inputPrompt
+ * In addition to the ea instance, the script also receives the `utils` object. utils includes to utility functions: suggester and inputPrompt.
+ * You may access these via the variable `utils`. e.g. utils.suggester(...);
  *   - inputPrompt(inputPrompt: (
  *       header: string,
  *       placeholder?: string,
@@ -169,6 +174,15 @@ export class ExcalidrawAutomate {
   get obsidian() {
     return obsidian_module;
   };
+
+  /**
+   * This is a modified version of the Obsidian.Modal class
+   * that allows the modal to be dragged around the screen
+   * and that does not dim the background.
+   */
+  get FloatingModal() {
+    return FloatingModal;
+  }
 
   /**
    * Retrieves the laser pointer settings from the plugin.
@@ -465,7 +479,7 @@ export class ExcalidrawAutomate {
    * @param {ExcalidrawView} [view] - The view to check.
    * @returns {{view:any}|{file:TFile, editor:Editor}|null} The active embeddable view or editor.
    */
-  public getActiveEmbeddableViewOrEditor (view?:ExcalidrawView): {view:any}|{file:TFile, editor:Editor}|null {
+  public getActiveEmbeddableViewOrEditor (view?:ExcalidrawView): {view:any}|{file:TFile, editor:Editor}|{node: ObsidianCanvasNode}|null {
     if (!this.targetView && !view) {
       return null;
     }
@@ -474,6 +488,9 @@ export class ExcalidrawAutomate {
     if(leafOrNode) {
       if(leafOrNode.node && leafOrNode.node.isEditing) {
         return {file: leafOrNode.node.file, editor: leafOrNode.node.child.editor};
+      }
+      if(leafOrNode.node) {
+        return {node: leafOrNode.node};
       }
       if(leafOrNode.leaf && leafOrNode.leaf.view) {
         return {view: leafOrNode.leaf.view};
@@ -543,6 +560,25 @@ export class ExcalidrawAutomate {
       return null;
     }
     return this.targetView.currentPosition;
+  }
+
+  /**
+   * Returns the center position of the current view in Excalidraw coordinates.
+   * @returns {{x:number, y:number}} The center position of the view.
+   */
+  public getViewCenterPosition(): {x:number, y:number} {
+    if (!this.targetView || !this.targetView?._loaded) {
+      errorMessage("targetView not set", "getExcalidrawAPI()");
+      return null;
+    }
+    const st = (this.getExcalidrawAPI() as ExcalidrawImperativeAPI).getAppState();
+    if (!st) return null;
+
+    const zoom = st.zoom?.value ?? 1;
+    const x = -st.scrollX + (st.width / 2) / zoom;
+    const y = -st.scrollY + (st.height / 2) / zoom;
+
+    return { x, y };
   }
 
   /**
@@ -822,59 +858,60 @@ export class ExcalidrawAutomate {
       frontmatter = mergeMarkdownFiles(template.frontmatter,frontmatter);
     }
 
+    const templateAppstate = template?.appState ?? {};
+    Object.keys(templateAppstate).forEach((key) => {
+      if(templateAppstate[key] === undefined) {
+        delete templateAppstate[key];
+      }
+    });
     const scene = {
       type: "excalidraw",
       version: 2,
       source: GITHUB_RELEASES+PLUGIN_VERSION,
       elements,
       appState: {
-        theme: template?.appState?.theme ?? this.canvas.theme,
+        ...templateAppstate,
+        theme: templateAppstate.theme ?? this.canvas.theme,
         viewBackgroundColor:
-          template?.appState?.viewBackgroundColor ??
+          templateAppstate.viewBackgroundColor ??
           this.canvas.viewBackgroundColor,
         currentItemStrokeColor:
-          template?.appState?.currentItemStrokeColor ??
+          templateAppstate.currentItemStrokeColor ??
           this.style.strokeColor,
         currentItemBackgroundColor:
-          template?.appState?.currentItemBackgroundColor ??
+          templateAppstate.currentItemBackgroundColor ??
           this.style.backgroundColor,
         currentItemFillStyle:
-          template?.appState?.currentItemFillStyle ?? this.style.fillStyle,
+          templateAppstate.currentItemFillStyle ?? this.style.fillStyle,
         currentItemStrokeWidth:
-          template?.appState?.currentItemStrokeWidth ??
+          templateAppstate.currentItemStrokeWidth ??
           this.style.strokeWidth,
         currentItemStrokeStyle:
-          template?.appState?.currentItemStrokeStyle ??
+          templateAppstate.currentItemStrokeStyle ??
           this.style.strokeStyle,
         currentItemRoughness:
-          template?.appState?.currentItemRoughness ?? this.style.roughness,
+          templateAppstate.currentItemRoughness ?? this.style.roughness,
         currentItemOpacity:
-          template?.appState?.currentItemOpacity ?? this.style.opacity,
+          templateAppstate.currentItemOpacity ?? this.style.opacity,
         currentItemFontFamily:
-          template?.appState?.currentItemFontFamily ?? this.style.fontFamily,
+          templateAppstate.currentItemFontFamily ?? this.style.fontFamily,
         currentItemFontSize:
-          template?.appState?.currentItemFontSize ?? this.style.fontSize,
+          templateAppstate.currentItemFontSize ?? this.style.fontSize,
         currentItemTextAlign:
-          template?.appState?.currentItemTextAlign ?? this.style.textAlign,
+          templateAppstate.currentItemTextAlign ?? this.style.textAlign,
         currentItemStartArrowhead:
-          template?.appState?.currentItemStartArrowhead ??
+          templateAppstate.currentItemStartArrowhead ??
           this.style.startArrowHead,
         currentItemEndArrowhead:
-          template?.appState?.currentItemEndArrowhead ??
+          templateAppstate.currentItemEndArrowhead ??
           this.style.endArrowHead,
-        currentItemRoundness: //type StrokeRoundness = "round" | "sharp"
-          template?.appState?.currentItemLinearStrokeSharpness ?? //legacy compatibility
-          template?.appState?.currentItemStrokeSharpness ?? //legacy compatibility
-          template?.appState?.currentItemRoundness ??
+        currentItemRoundness:
+          templateAppstate.currentItemLinearStrokeSharpness ??
+          templateAppstate.currentItemStrokeSharpness ??
+          templateAppstate.currentItemRoundness ??
           this.style.roundness ? "round":"sharp",
-        gridSize: template?.appState?.gridSize ?? this.canvas.gridSize,
-        colorPalette: template?.appState?.colorPalette ?? this.colorPalette,
-        ...template?.appState?.frameRendering
-          ? {frameRendering: template.appState.frameRendering}
-          : {},
-        ...template?.appState?.objectsSnapModeEnabled
-          ? {objectsSnapModeEnabled: template.appState.objectsSnapModeEnabled}
-          : {},
+        gridSize: templateAppstate.gridSize ?? this.canvas.gridSize,
+        colorPalette: templateAppstate.colorPalette ?? this.colorPalette,
       },
       files: template?.files ?? {},
     };
@@ -1031,6 +1068,7 @@ export class ExcalidrawAutomate {
   * @param {boolean} [options.selectedOnly=false] - Whether to include only the selected elements in the SVG.
   * @param {boolean} [options.skipInliningFonts=false] - Whether to skip inlining fonts in the SVG.
   * @param {boolean} [options.embedScene=false] - Whether to embed the scene in the SVG.
+  * @param {ExcalidrawElement[]} [options.elementsOverride] - Optional override for the elements to include in the SVG. Primary to support the Printable Layout Wizard script
   * @returns {Promise<SVGSVGElement>} A promise that resolves to the SVG element.
  */
   async createViewSVG({
@@ -1041,6 +1079,7 @@ export class ExcalidrawAutomate {
     selectedOnly = false,
     skipInliningFonts = false,
     embedScene = false,
+    elementsOverride,
   } : {
     withBackground?: boolean,
     theme?: "light" | "dark",
@@ -1049,6 +1088,7 @@ export class ExcalidrawAutomate {
     selectedOnly?: boolean,
     skipInliningFonts?: boolean,
     embedScene?: boolean,
+    elementsOverride?: ExcalidrawElement[]
   }): Promise<SVGSVGElement> {
     if(!this.targetView || !this.targetView.file || !this.targetView._loaded) {
       console.log("No view loaded");
@@ -1057,6 +1097,9 @@ export class ExcalidrawAutomate {
     const view = this.targetView;
     const scene = this.targetView.getScene(selectedOnly);
 
+    if(elementsOverride) {
+      scene.elements = elementsOverride;
+    }
     const exportSettings: ExportSettings = {
       withBackground: view.getViewExportWithBackground(withBackground),
       withTheme: true,
@@ -1230,6 +1273,36 @@ export class ExcalidrawAutomate {
     return wrapTextAtCharLength(text, lineLen, this.plugin.settings.forceWrap);
   };
 
+  /** ROUNDNESS as defined in the Excalidraw packages/common/src/constants.ts
+   * Radius represented as 25% of element's largest side (width/height).
+   * Used for LEGACY and PROPORTIONAL_RADIUS algorithms, or when the element is
+   * below the cutoff size.
+   * export const DEFAULT_PROPORTIONAL_RADIUS = 0.25;
+   *
+   * Fixed radius for the ADAPTIVE_RADIUS algorithm. In pixels.
+   * export const DEFAULT_ADAPTIVE_RADIUS = 32;
+   *
+   * roundness type (algorithm)
+   * export const ROUNDNESS = {
+   *   Used for legacy rounding (rectangles), which currently works the same
+   *   as PROPORTIONAL_RADIUS, but we need to differentiate for UI purposes and
+   *   forwards-compat.
+   *   LEGACY: 1,
+   *
+   *   Used for linear elements & diamonds
+   *   PROPORTIONAL_RADIUS: 2,
+   *
+   *   Current default algorithm for rectangles, using fixed pixel radius.
+   *   It's working similarly to a regular border-radius, but attemps to make
+   *   radius visually similar across differnt element sizes, especially
+   *   very large and very small elements.
+   *
+   *   NOTE right now we don't allow configuration and use a constant radius
+   *   (see DEFAULT_ADAPTIVE_RADIUS constant)
+   *   ADAPTIVE_RADIUS: 3,
+   * } as const;
+   */
+
   /**
    * Utility function. Returns an element object using style settings and provided parameters.
    * @param {string} id - The element ID.
@@ -1281,6 +1354,7 @@ export class ExcalidrawAutomate {
       boundElements: [] as any,
       link,
       locked: false,
+      frameId: null as string,
       ...scale ? {scale} : {},
     };
   }
@@ -1670,6 +1744,7 @@ export class ExcalidrawAutomate {
     );
 
     if(dimensions && !formatting?.width) {
+
       textElement.width = dimensions.width;
       textElement.height = dimensions.height;
       textElement.x = dimensions.x;
@@ -1916,10 +1991,12 @@ export class ExcalidrawAutomate {
       image.size.width,
       image.size.height,
     );
-    this.elementsDict[id].fileId = fileId;
-    this.elementsDict[id].scale = [1, 1];
+    const newEl = this.elementsDict[id] as Mutable<ExcalidrawImageElement>;
+    newEl.fileId = fileId;
+    newEl.scale = [1, 1];
+    newEl.crop = null;
     if(!scale && anchor) {
-      this.elementsDict[id].customData = {isAnchored: true}
+      newEl.customData = {isAnchored: true}
     };
     return id;
   };
@@ -2716,8 +2793,11 @@ export class ExcalidrawAutomate {
       errorMessage("targetView not set", "addElementsToView()");
       return false;
     }
-    const elements = this.getElements();    
-    return await this.targetView.addElements({
+    const elements = this.getElements();
+    if(elements.some(el=>el.type === "embeddable")) {
+      patchMobileView(this.targetView);
+    }
+    const result = await this.targetView.addElements({
       newElements: elements,
       repositionToCursor,
       save,
@@ -2725,6 +2805,7 @@ export class ExcalidrawAutomate {
       newElementsOnTop,
       shouldRestoreElements,
     });
+    return result;
   };
 
   /**
@@ -3018,6 +3099,32 @@ export class ExcalidrawAutomate {
     isMask: boolean = false,
   ): ExportSettings {
     return { withBackground, withTheme, isMask };
+  };
+
+
+  /**
+   * Gets the elements within a specific area.
+   * @param elements - The elements to check.
+   * @param param1 - The area to check against.
+   * @returns The elements within the area.
+   */
+  getElementsInArea(
+    elements: NonDeletedExcalidrawElement[],
+    element: NonDeletedExcalidrawElement,    
+  ):ExcalidrawElement[] {
+    const {x, y, width, height, id} = element;
+    return elements
+      .filter(el => {
+        if((el.type==="frame" && el.frameRole==="marker")) return false;
+        if(el.id === id) return true;
+        const {topX, topY, width:w, height:h} = this.getBoundingBox([el]);
+        const elLeft = topX;
+        const elTop = topY;
+        const elRight = topX + w;
+        const elBottom = topY + h;
+        // overlap exists if rectangles intersect
+        return !(elLeft >= x + width || elRight <= x || elTop >= y + height || elBottom <= y);
+      });
   };
 
   /**

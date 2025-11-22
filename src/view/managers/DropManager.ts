@@ -105,6 +105,7 @@ export class DropManager {
       files: TFile[],
       text: string,
     ): boolean => {
+      this.app.workspace.setActiveLeaf(this.view.leaf); //ensure the view is active, so ModalContainerObserver is active
       if (this.view.getHookServer().onDropHook) {
         try {
           return this.view.getHookServer().onDropHook({
@@ -134,6 +135,7 @@ export class DropManager {
     // Obsidian internal drag event
     //---------------------------------------------------------------------------------
     switch (draggable?.type) {
+      case "link":
       case "file":
         if (!onDropHook("file", [draggable.file], null)) {
           const file:TFile = draggable.file;
@@ -347,7 +349,7 @@ export class DropManager {
           }
           if(!path) {            
             new Notice(t("ERROR_CANT_READ_FILEPATH"),6000);
-            return true; //excalidarw to continue processing
+            return true; //excalidraw to continue processing
           }
           const link = getInternalLinkOrFileURLLink(path, this.plugin, event.dataTransfer.files[i].name, this.file);
           const {x,y} = this.currentPosition;
@@ -412,7 +414,7 @@ export class DropManager {
                   ea.destroy();
                 })();
               } else if(extension === "excalidraw") {
-                return true; //excalidarw to continue processing
+                return true; //excalidraw to continue processing
               } else {
                 (async () => {
                   const file = await importFileToVault(
@@ -458,7 +460,7 @@ export class DropManager {
           if(!path || !name) {
             new Notice(t("ERROR_CANT_READ_FILEPATH"),6000);
             ea.destroy();
-            return true; //excalidarw to continue processing
+            return true; //excalidraw to continue processing
           }
           const link = getInternalLinkOrFileURLLink(path, this.plugin, name, this.file);
           const id = ea.addText(
