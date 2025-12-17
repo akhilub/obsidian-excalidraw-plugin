@@ -17,12 +17,62 @@ I build this plugin in my free time, as a labor of love. Curious about the philo
 
 <div class="ex-coffee-div"><a href="https://ko-fi.com/zsolt"><img src="https://storage.ko-fi.com/cdn/kofi6.png?v=6" border="0" alt="Buy Me a Coffee at ko-fi.com"  height=45></a></div>
 `,
+"2.18.1":`
+## New
+- Improved the **Copy [[link]] for selected elements** context-menu action:
+  - Added an optional checkbox to append the \`|100%\` anchor to the copied link.
+  - Added an option to copy by **frame name** (instead of frame ID) when the frame is named.
+
+## Fixed
+- Prevented unnecessary \`data.json\` saves each time a drawing is opened. [#2562](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2562)
+- Fixed angle snapping when a line passes over an object.
+- Fixed hover preview when referencing a frame by name in an image reference.
+- Fixed “Back of note” card insertion breaking LaTeX equations in existing cards. [#2296](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2296) 🙏[@TravisLEBLANC1](https://github.com/TravisLEBLANC1)
+- Adjusted hover-preview sizing to more closely match embeds. [#2525](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2575) 🙏[parkero](https://github.com/parkero)
+`,
+"2.18.0":`
+## New from Excalidraw.com
+- 🔥🔥🔥 New arrow behavior allows binding arrows to the inside of shapes and image! 🙏[mtolmacs](https://github.com/mtolmacs), [dwelle](https://github.com/dwelle) [#9670](https://github.com/excalidraw/excalidraw/pull/9670)
+
+## New
+- New option in the Export Dialog to **include/exclude internal links** when exporting to SVG or PDF.
+  - Useful when sharing an SVG or PDF with others.
+  - Internal links are links that point to files in your Obsidian vault.
+  - By default, internal links are included in exports.
+  - Use the new document property: \`export-internal-links: false\` to disable exporting internal links on a per-drawing basis.
+
+## Fixed
+- Memory leak issues
+- Potential fix to Backspace and CTRL+V stopping working in text elements after extended use of Excalidraw.
+- Improved detection of on-screen keyboard on mobile devices. (issue reported on [Discord](https://discord.com/channels/1026825302900494357/1444652800360316959))
+- Insert any file, insert LaTeX and some other dialogs got hidden behind the on-screen keyboard on mobile devices. Dialogs appear at the top of the screen now on mobile devices.
+
+## New in ExcalidrawAutomate
+- **createSVG()** now exposes convertMarkdownLinksToObsidianURLs and includeInternalLinks parameters.
+\`\`\`ts
+async createSVG(
+    templatePath?: string,
+    embedFont: boolean = false,
+    exportSettings?: ExportSettings, 
+    loader?: EmbeddedFilesLoader,
+    theme?: string,
+    padding?: number,
+    convertMarkdownLinksToObsidianURLs: boolean = false,
+    includeInternalLinks: boolean = true,
+  ): Promise<SVGSVGElement>
+\`\`\`
+`,
 "2.17.2":`
 ## Fixed
 - Lasso selection tool is back in the more tools menu in tray-mode and desktop mode.
 - "Toggle enable context menu" command palette action is available on mobile devices.
 - FloatingModal window top-right close button did not work on mobile devices.
 - Hover preview flashed for larger PDF hover previews, in some cases would not even show.
+- Fixed: opanAI API URL in settings will be honored when creating code from diagram [#2540](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2540) 🙏[@threeq](https://github.com/threeq)
+- Fixed export to PDF. Rounded images cropped from the left and the top were transformed incorrectly. [#2544](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2544)
+
+## New
+- Added configurable max tokens setting for OpenAI API [#2543](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2543) 🙏[@dddrop](https://github.com/dddrop)
 `,
 "2.17.1":`
 ## Fixed

@@ -63,6 +63,7 @@ export default {
   MARKER_FRAME_TITLE_SHOW: "Show Marker Frame Titles",
   MARKER_FRAME_TITLE_HIDE: "Hide Marker Frame Titles",
   COPY_ELEMENT_LINK: "Copy [[link]] for selected element(s)",
+  FRAME_WITH_NAME: "Copy frame link by name",
   COPY_DRAWING_LINK: "Copy ![[embed link]] for this drawing",
   INSERT_LINK_TO_ELEMENT:
     `Copy [[link]] for selected element to clipboard. ${labelCTRL()}+CLICK to copy 'group=' link. ${labelSHIFT()}+CLICK to copy an 'area=' link.`,
@@ -509,8 +510,7 @@ export default {
     "<b><u>Toggle ON:</u></b>Change grid color to match the canvas color<br><b><u>Toggle OFF:</u></b>Use the color below as the grid color",
   GRID_COLOR_NAME: "Grid color",
   GRID_OPACITY_NAME: "Grid opacity",
-  GRID_OPACITY_DESC: "Grid opacity will also control the opacity of the binding box when binding an arrow to an element.<br>" +
-    "Set the opacity of the grid. 0 is transparent, 100 is opaque.",
+  GRID_OPACITY_DESC: "Sets the opacity of the grid. 0 is transparent, 100 is opaque.",
   GRID_DIRECTION_NAME: "Grid direction",
   GRID_DIRECTION_DESC: "The first toggle shows/hides the horizontal grid, the second toggle shows/hides the vertical grid.",
   GRID_HORIZONTAL: "Render horizontal grid",
@@ -1134,6 +1134,7 @@ export default {
   EXPORTDIALOG_BACKGROUND: "Background",
   EXPORTDIALOG_BACKGROUND_TRANSPARENT: "Transparent",
   EXPORTDIALOG_BACKGROUND_USE_COLOR: "Use scene color",
+  EXPORTDIALOG_INCLUDE_INTERNAL_LINKS: "Export internal links to SVG/PDF?",
   // Selection
   EXPORTDIALOG_SELECTED_ELEMENTS: "Export",
   EXPORTDIALOG_SELECTED_ALL: "Entire scene",

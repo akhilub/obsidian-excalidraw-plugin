@@ -25,7 +25,6 @@ import {
   COLOR_NAMES,
   fileid,
   GITHUB_RELEASES,
-  determineFocusDistance,
   getCommonBoundingBox,
   getLineHeight,
   getMaximumGroups,
@@ -77,7 +76,7 @@ import {
   extractCodeBlocks as _extractCodeBlocks,
 } from "../utils/AIUtils";
 import { EXCALIDRAW_AUTOMATE_INFO, EXCALIDRAW_SCRIPTENGINE_INFO } from "./Dialogs/SuggesterInfo";
-import { addBackOfTheNoteCard } from "../utils/excalidrawViewUtils";
+import { addBackOfTheNoteCard, sceneRemoveInternalLinks } from "../utils/excalidrawViewUtils";
 import { log } from "../utils/debugHelper";
 import { ExcalidrawLib } from "../types/excalidrawLib";
 import { GlobalPoint } from "@zsviczian/excalidraw/types/math/src/types";
@@ -800,6 +799,7 @@ export class ExcalidrawAutomate {
       "excalidraw-autoexport"?: boolean;
       "excalidraw-mask"?: boolean;
       "excalidraw-open-md"?: boolean;
+      "excalidraw-export-internal-links"?: boolean;
       "cssclasses"?: string;
     };
     plaintext?: string; //text to insert above the `# Text Elements` section
@@ -1100,6 +1100,11 @@ export class ExcalidrawAutomate {
     if(elementsOverride) {
       scene.elements = elementsOverride;
     }
+
+    if(!view.getViewExportIncludeInternalLinks()) {
+      scene.elements = sceneRemoveInternalLinks(scene);
+    }
+
     const exportSettings: ExportSettings = {
       withBackground: view.getViewExportWithBackground(withBackground),
       withTheme: true,
@@ -1142,6 +1147,8 @@ export class ExcalidrawAutomate {
     loader?: EmbeddedFilesLoader,
     theme?: string,
     padding?: number,
+    convertMarkdownLinksToObsidianURLs: boolean = false,
+    includeInternalLinks: boolean = true,
   ): Promise<SVGSVGElement> {
     if (!theme) {
       theme = this.plugin.settings.previewMatchObsidianTheme
@@ -1179,7 +1186,9 @@ export class ExcalidrawAutomate {
       this.plugin,
       0,
       padding,
-      this.imagesDict
+      this.imagesDict,
+      convertMarkdownLinksToObsidianURLs,
+      includeInternalLinks,
     );
   };
 
@@ -1810,27 +1819,19 @@ export class ExcalidrawAutomate {
       lastCommittedPoint: null,
       startBinding: {
         elementId: formatting?.startObjectId,
-        focus: formatting?.startObjectId
-          ? determineFocusDistance(
-              this.getElement(formatting?.startObjectId) as ExcalidrawBindableElement,
-              elementsMap,
-              endPoint,
-              startPoint,
-            )
-          : 0.1,
-        gap: GAP,
+        mode: "orbit",
+				fixedPoint: [
+					1,
+					1
+				],
       },
       endBinding: {
         elementId: formatting?.endObjectId,
-        focus: formatting?.endObjectId
-          ? determineFocusDistance(
-              this.getElement(formatting?.endObjectId) as ExcalidrawBindableElement,
-              elementsMap,
-              startPoint,
-              endPoint,
-            )
-          : 0.1,
-        gap: GAP,
+        mode: "orbit",
+				fixedPoint: [
+					0,
+					0
+				],
       },
       //https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/388
       startArrowhead:
@@ -2009,6 +2010,9 @@ export class ExcalidrawAutomate {
    * @returns {Promise<string>} Promise resolving to the ID of the added LaTeX image element.
    */
   async addLaTex(topX: number, topY: number, tex: string): Promise<string> {
+    if (!tex){
+      return null;
+    }
     const id = nanoid();
     const image = await tex2dataURL(tex, 4, this.plugin);
     if (!image) {

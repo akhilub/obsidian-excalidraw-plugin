@@ -86,7 +86,6 @@ export const obsidianToExcalidrawMap: { [key: string]: string } = {
 export let {
   sceneCoordsToViewportCoords,
   viewportCoordsToSceneCoords,
-  determineFocusDistance,
   intersectElementWithLine,
   getCommonBoundingBox,
   getMaximumGroups,
@@ -120,7 +119,6 @@ export function updateExcalidrawLib() {
     const requiredFunctions = [
       'sceneCoordsToViewportCoords',
       'viewportCoordsToSceneCoords',
-      'determineFocusDistance',
       'intersectElementWithLine',
       'getCommonBoundingBox',
       'measureText',
@@ -138,7 +136,6 @@ export function updateExcalidrawLib() {
     ({
       sceneCoordsToViewportCoords,
       viewportCoordsToSceneCoords,
-      determineFocusDistance,
       intersectElementWithLine,
       getCommonBoundingBox,
       getMaximumGroups,
@@ -249,6 +246,7 @@ export const FRONTMATTER_KEYS:{[key:string]: {name: string, type: string, depric
   "export-padding": {name: "excalidraw-export-padding", type: "number"},
   "export-pngscale": {name: "excalidraw-export-pngscale", type: "number"},
   "export-embed-scene": {name: "excalidraw-export-embed-scene", type: "checkbox"},
+  "export-internal-links": {name: "excalidraw-export-internal-links", type: "checkbox"},
   "link-prefix": {name: "excalidraw-link-prefix", type: "text"},
   "url-prefix": {name: "excalidraw-url-prefix", type: "text"},
   "link-brackets": {name: "excalidraw-link-brackets", type: "checkbox"},

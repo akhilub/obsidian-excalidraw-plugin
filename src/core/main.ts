@@ -90,6 +90,8 @@ import { CommandManager } from "./managers/CommandManager";
 import { EventManager } from "./managers/EventManager";
 import { UniversalInsertFileModal } from "src/shared/Dialogs/UniversalInsertFileModal";
 import en from "src/lang/locale/en";
+import { get } from "http";
+import { getHighlightColor } from "src/utils/dynamicStyling";
 
 declare const PLUGIN_VERSION:string;
 declare const INITIAL_TIMESTAMP: number;
@@ -558,7 +560,7 @@ export default class ExcalidrawPlugin extends Plugin {
     let fontMetrics = f.extension.startsWith("woff") ? undefined : await getFontMetrics(fourthFontDataURL, "Local Font");
     
     if (!fontMetrics) {
-      console.log("Font Metrics not found, using default");
+      //console.log("Font Metrics not found, using default");
       fontMetrics = {
         unitsPerEm: 1000,
         ascender: 750,
@@ -1265,10 +1267,14 @@ export default class ExcalidrawPlugin extends Plugin {
     return JSON_parse(this.settings.library);
   }
 
-  public setStencilLibrary(library: {}) {
+  public async setStencilLibrary(library: {}) {
     (process.env.NODE_ENV === 'development') && DEBUGGING && debug(this.setStencilLibrary,`ExcalidrawPlugin.setStencilLibrary`, library);
     this.settings.library = "deprecated";
+    if(JSON.stringify(this.settings.library2) === JSON.stringify(library)) {
+      return;
+    }
     this.settings.library2 = library;
+    await this.saveSettings();
   }
 
   public triggerEmbedUpdates(filepath?: string) {
@@ -1485,5 +1491,9 @@ export default class ExcalidrawPlugin extends Plugin {
 
   public getObsidianDevice(): DeviceType {
     return DEVICE;
+  }
+
+  public getHighlightColor(sceneBgColor: string, opacity: number = 1): string {
+    return getHighlightColor(this.ea, sceneBgColor, opacity);
   }
 }
