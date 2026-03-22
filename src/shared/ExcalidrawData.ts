@@ -20,12 +20,12 @@ import {
   loadSceneFonts,
 } from "../constants/constants";
 import ExcalidrawPlugin from "../core/main";
-import ExcalidrawView, { TextMode } from "../view/ExcalidrawView";
+import { TextMode } from "./TextMode";
+import type ExcalidrawView from "../view/ExcalidrawView";
+import { addAppendUpdateCustomData } from "../utils/elementCustomDataUtils";
 import {
-  addAppendUpdateCustomData,
   compress,
   decompress,
-  //getBakPath,
   getBinaryFileFromDataURL,
   _getContainerElement,
   getExportTheme,
@@ -37,8 +37,9 @@ import {
   wrapTextAtCharLength,
   arrayToMap,
   compressAsync,
-} from "../utils/utils";
-import { cleanBlockRef, cleanSectionHeading, getAttachmentsFolderAndFilePath, isObsidianThemeDark } from "../utils/obsidianUtils";
+} from "../utils/sceneDataUtils";
+import { isObsidianThemeDark } from "../utils/obsidianUtils";
+import { cleanBlockRef, cleanSectionHeading } from "../utils/pathUtils";
 import {
   ExcalidrawElement,
   ExcalidrawImageElement,
@@ -471,7 +472,7 @@ export const getExcalidrawMarkdownHeaderSection = (data:string, keys?:[string,st
 export class ExcalidrawData {
   public textElements: Map<
     string,
-    { raw: string; parsed: string}
+    { raw: string; parsed: string; hasTextLink: boolean; }
   > = null;
   public scene: any = null;
   public deletedElements: ExcalidrawElement[] = [];
@@ -709,7 +710,7 @@ export class ExcalidrawData {
     this.selectedElementIds = {};
     this.textElements = new Map<
       string,
-      { raw: string; parsed: string}
+      { raw: string; parsed: string, hasTextLink: boolean }
     >();
     this.elementLinks = new Map<string, string>();
     if (this.file !== file) {
@@ -939,10 +940,12 @@ export class ExcalidrawData {
           this.textElements.set(id, {
             raw: text,
             parsed: parseRes.parsed,
+            hasTextLink: !!parseRes.link,
           });
-          if (parseRes.link) {
+          if (parseRes.link && this.plugin.settings.syncElementLinkWithText) {
             textEl.link = parseRes.link;
           }
+          textEl.hasTextLink = !!parseRes.link;
           //this will set the rawText field of text elements imported from files before 1.3.14, and from other instances of Excalidraw
           if (textEl && (!textEl.rawText || textEl.rawText === "")) {
             textEl.rawText = text;
@@ -1037,7 +1040,7 @@ export class ExcalidrawData {
     this.file = file;
     this.textElements = new Map<
       string,
-      { raw: string; parsed: string}
+      { raw: string; parsed: string; hasTextLink: boolean }
     >();
     this.elementLinks = new Map<string, string>();
     this.setShowLinkBrackets();
@@ -1112,9 +1115,11 @@ export class ExcalidrawData {
     }
     if (this.textMode === TextMode.parsed) {
       if (!text.parsed) {
+        const parseRes = await this.parse(text.raw);
         this.textElements.set(id, {
           raw: text.raw,
-          parsed: (await this.parse(text.raw)).parsed,
+          parsed: parseRes.parsed,
+          hasTextLink: !!parseRes.link,
         });
       }
       //console.log("parsed",this.textElements.get(id).parsed);
@@ -1130,7 +1135,6 @@ export class ExcalidrawData {
       return (
         el.type !== "text" &&
         el.link &&
-        //el.link.startsWith("[[") &&
         !this.elementLinks.has(el.id)
       );
     });
@@ -1186,17 +1190,18 @@ export class ExcalidrawData {
           this.textElements.set(id, {
             raw: text.raw,
             parsed: text.parsed,
+            hasTextLink: text.hasTextLink,
           });
           this.textElements.delete(te.id); //delete the old ID from the Map
         }
         if (!this.textElements.has(id)) {
           const raw = te.rawText && te.rawText !== "" ? te.rawText : te.text; //this is for compatibility with drawings created before the rawText change on ExcalidrawTextElement
-          this.textElements.set(id, { raw, parsed: null});
+          this.textElements.set(id, { raw, parsed: null, hasTextLink: false});
           this.parseasync(id, raw);
         }
       } else if (!this.textElements.has(te.id)) {
         const raw = te.rawText && te.rawText !== "" ? te.rawText : te.text; //this is for compatibility with drawings created before the rawText change on ExcalidrawTextElement
-        this.textElements.set(id, { raw, parsed: null});
+        this.textElements.set(id, { raw, parsed: null, hasTextLink: false});
         this.parseasync(id, raw);
       }
       
@@ -1212,7 +1217,6 @@ export class ExcalidrawData {
           el.type !== "text" &&
           el.id === key &&
           el.link, //&&
-          //el.link.startsWith("[["),
       );
       if (el.length === 0) {
         this.elementLinks.delete(key); //if no longer in the scene, delete the text element
@@ -1240,9 +1244,11 @@ export class ExcalidrawData {
           ? el[0].rawText
           : (el[0].originalText ?? el[0].text);
         if (text !== (el[0].originalText ?? el[0].text)) {
+          const parseRes = await this.parse(text);
           this.textElements.set(key, {
             raw,
-            parsed: (await this.parse(raw)).parsed,
+            parsed: parseRes.parsed,
+            hasTextLink: !!parseRes.link,
           });
         }
       }
@@ -1250,9 +1256,11 @@ export class ExcalidrawData {
   }
 
   private async parseasync(key: string, raw: string) {
+    const parseRes = await this.parse(raw);
     this.textElements.set(key, {
       raw,
-      parsed: (await this.parse(raw)).parsed,
+      parsed: parseRes.parsed,
+      hasTextLink: !!parseRes.link,
     });
   }
 
@@ -1350,6 +1358,7 @@ export class ExcalidrawData {
       position = parts.value.index + parts.value[0].length;
     }
     outString += text.substring(position, text.length);
+    outString = this.unescapeSquareBrackets(outString);
     if (linkIcon) {
       outString = this.linkPrefix + outString;
     }
@@ -1360,6 +1369,20 @@ export class ExcalidrawData {
     return { parsed: outString, link };
   }
 
+  /**
+   * Public wrapper around the internal text parser.
+   *
+   * This reuses existing ExcalidrawData parsing behavior, including
+   * transclusions, link formatting, and prefix handling.
+   * @param text Raw text to parse.
+   * @returns Parsed text string.
+   */
+  public async parseText(text: string): Promise<string> {
+    if(!text) return;
+    const res = await this.parse(text);
+    return res.parsed;
+  }
+
   private parseCheckbox(text:string):string {
     return this.plugin.settings.parseTODO 
       ? text
@@ -1368,6 +1391,10 @@ export class ExcalidrawData {
         .replaceAll(/^- \[[^\s]] /g,`${this.plugin.settings.done} `)
         .replaceAll(/\n- \[[^\s]] /g,`\n${this.plugin.settings.done} `)
       : text;
+  }
+
+  private unescapeSquareBrackets(text: string): string {
+    return text?.replaceAll(/\\\[/g, "[") ?? text;
   }
 
   /**
@@ -1427,6 +1454,7 @@ export class ExcalidrawData {
       position = parts.value.index + parts.value[0].length;
     }
     outString += text.substring(position, text.length);
+    outString = this.unescapeSquareBrackets(outString);
     if (linkIcon) {
       outString = this.linkPrefix + outString;
     }
@@ -1442,6 +1470,7 @@ export class ExcalidrawData {
    */
   disableCompression: boolean = false;
   generateMDBase(deletedElements: ExcalidrawElement[] = []) {
+    const syncTextLinks = this.plugin.settings.syncElementLinkWithText;
     let outString = this.textElementCommentedOut ? "%%\n" : "";
     outString += `# Excalidraw Data\n\n## Text Elements\n`;
     if (this.plugin.settings.addDummyTextElement) {
@@ -1452,7 +1481,7 @@ export class ExcalidrawData {
       //https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/566
       const element = this.scene.elements.filter((el:any)=>el.id===key);
       let elementString = this.textElements.get(key).raw;
-      if(element && element.length===1 && element[0].link && element[0].rawText === element[0].originalText) {
+      if(element && element.length===1 && element[0].link && (!syncTextLinks || element[0].rawText === element[0].originalText)) {
         //if(element[0].link.match(/^\[\[[^\]]*]]$/g)) { //apply this only to markdown links
           textElementLinks.set(key, element[0].link);
           //elementString = `%%***>>>text element-link:${element[0].link}<<<***%%` + elementString;
@@ -1771,6 +1800,14 @@ export class ExcalidrawData {
     return t.parsed;
   }
 
+  public getParsedResult(id: string) {
+    const t = this.textElements.get(id);
+    if (!t) {
+      return null;
+    }
+    return t;
+  }
+
   /**
    * Attempts to quickparse (sycnhronously) the raw text.
    * 
@@ -1800,6 +1837,7 @@ export class ExcalidrawData {
       this.textElements.set(elementID, {
         raw: rawOriginalText,
         parsed: parseResult,
+        hasTextLink: !!link,
       });
       return [parseResult, link];
     }
@@ -1809,6 +1847,7 @@ export class ExcalidrawData {
       this.textElements.set(elementID, {
         raw: rawOriginalText,
         parsed: parsedText,
+        hasTextLink: !!parseRes.link,
       });
       if (parsedText) {
         updateSceneCallback(parsedText);
@@ -1826,6 +1865,7 @@ export class ExcalidrawData {
     this.textElements.set(elementID, {
       raw: rawOriginalText,
       parsed: parseResult.parsed,
+      hasTextLink: !!parseResult.link,
     });
     return {
       parseResult: parseResult.parsed,

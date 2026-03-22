@@ -45,6 +45,7 @@ import { createSliderWithText } from "src/utils/sliderUtils";
 import { PDFExportSettingsComponent, PDFExportSettings } from "src/shared/Dialogs/PDFExportSettingsComponent";
 import { ContentSearcher } from "src/shared/components/ContentSearcher";
 import { UIMode, UIModeSettingsComponent } from "src/shared/Dialogs/UIModeSettingComponent";
+import { ScriptSettingValue } from "src/types/excalidrawAutomateTypes";
 
 export interface ExcalidrawSettings {
   copyLinkToElemenetAnchorTo100: boolean;
@@ -91,6 +92,7 @@ export interface ExcalidrawSettings {
   isLeftHanded: boolean;
   desktopUIMode: UIMode;
   tabletUIMode: UIMode;
+  phoneUIMode: UIMode;
   iframeMatchExcalidrawTheme: boolean;
   matchTheme: boolean;
   matchThemeAlways: boolean;
@@ -117,6 +119,7 @@ export interface ExcalidrawSettings {
   focusOnFileTab: boolean;
   openInMainWorkspace: boolean;
   showLinkBrackets: boolean;
+  syncElementLinkWithText: boolean;
   linkPrefix: string;
   urlPrefix: string;
   parseTODO: boolean;
@@ -171,13 +174,7 @@ export interface ExcalidrawSettings {
   mdCSS: string;
   scriptEngineSettings: {
     [key:string]: {
-      [key:string]: {
-        value?:string,
-        hidden?: boolean,
-        description?: string,
-        valueset?: string[],
-        height?: number,
-      }
+      [key:string]: ScriptSettingValue;
     }
   };
   previousRelease: string;
@@ -190,6 +187,7 @@ export interface ExcalidrawSettings {
   taskboneEnabled: boolean;
   taskboneAPIkey: string;
   pinnedScripts: string[];
+  sidepanelTabs: string[];
   customPens: PenStyle[];
   numberOfCustomPens: number;
   pdfScale: number;
@@ -286,6 +284,7 @@ export const DEFAULT_SETTINGS: ExcalidrawSettings = {
   isLeftHanded: false,
   desktopUIMode: "tray",
   tabletUIMode: "compact",
+  phoneUIMode: "mobile",
   iframeMatchExcalidrawTheme: true,
   matchTheme: false,
   matchThemeAlways: false,
@@ -318,7 +317,8 @@ export const DEFAULT_SETTINGS: ExcalidrawSettings = {
   showSecondOrderLinks: true,
   focusOnFileTab: true,
   openInMainWorkspace: true,
-  showLinkBrackets: true,
+  showLinkBrackets: false,
+  syncElementLinkWithText: false,
   allowCtrlClick: true,
   forceWrap: false,
   pageTransclusionCharLimit: 200,
@@ -380,6 +380,7 @@ export const DEFAULT_SETTINGS: ExcalidrawSettings = {
   taskboneEnabled: false,
   taskboneAPIkey: "",
   pinnedScripts: [],
+  sidepanelTabs: [],
   customPens: [
     {...PENS["default"]},
     {...PENS["highlighter"]},
@@ -430,10 +431,10 @@ export const DEFAULT_SETTINGS: ExcalidrawSettings = {
   startupScriptPath: "",
   aiEnabled: true,
   openAIAPIToken: "",
-  openAIDefaultTextModel: "gpt-3.5-turbo-1106",
+  openAIDefaultTextModel: "gpt-5-mini",
   openAIDefaultTextModelMaxTokens: 4096,
-  openAIDefaultVisionModel: "gpt-4o",
-  openAIDefaultImageGenerationModel: "dall-e-3",
+  openAIDefaultVisionModel: "gpt-5-mini", 
+  openAIDefaultImageGenerationModel: "gpt-image-1",
   openAIURL: "https://api.openai.com/v1/chat/completions",
   openAIImageGenerationURL: "https://api.openai.com/v1/images/generations",
   openAIImageEditsURL: "https://api.openai.com/v1/images/edits",
@@ -1819,6 +1820,18 @@ export class ExcalidrawSettingTab extends PluginSettingTab {
     );
 
     new Setting(detailsEl)
+      .setName(t("ELEMENT_LINK_SYNC_NAME"))
+      .setDesc(fragWithHTML(t("ELEMENT_LINK_SYNC_DESC")))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.syncElementLinkWithText)
+          .onChange(async (value) => {
+            this.plugin.settings.syncElementLinkWithText = value;
+            this.applySettingsUpdate();
+          }),
+      );
+
+    new Setting(detailsEl)
     .setName(t("SECOND_ORDER_LINKS_NAME"))
     .setDesc(fragWithHTML(t("SECOND_ORDER_LINKS_DESC")))
     .addToggle((toggle) =>
@@ -1877,6 +1890,7 @@ export class ExcalidrawSettingTab extends PluginSettingTab {
             this.applySettingsUpdate(true);
           }),
       );
+
 
     new Setting(detailsEl)
       .setName(t("LINK_PREFIX_NAME"))

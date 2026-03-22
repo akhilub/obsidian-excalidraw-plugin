@@ -60,9 +60,29 @@ export async function copyLinkToSelectedElementToClipboard(view: ExcalidrawView,
   let cancelled = true;
 
   const button = {
-    area: { caption: "Area", action: () => { cancelled = false; prefix = "area="; return; } },
-    link: { caption: "Link", action: () => { cancelled = false; prefix = ""; return; } },
-    group: { caption: "Group", action: () => { cancelled = false; prefix = "group="; return; } },
+    area: {
+      caption: "Area",
+      action: () => {
+        cancelled = false;
+        prefix = "area=";
+        return;
+      }
+    },
+    link: {
+      caption: "Link",
+      action: () => {
+        cancelled = false;
+        prefix = "";
+        return;
+      } },
+    group: {
+      caption: "Group",
+      action: () => {
+        cancelled = false;
+        prefix = "group=";
+        return;
+      }
+    },
     frame: {
       caption: "Frame",
       action: () => {
@@ -123,9 +143,9 @@ export async function copyLinkToSelectedElementToClipboard(view: ExcalidrawView,
       break;
     default:
       buttons = [
-        { caption: "Link", action: () => { prefix = ""; return; } },
-        { caption: "Area", action: () => { prefix = "area="; return; } },
-        { caption: "Group", action: () => { prefix = "group="; return; } },
+        button.link,
+        button.area,
+        button.group,
         ...(hasFrame && !hasMarkerFrame ? [button.clippedframe] : []),
         ...(hasFrame ? [button.frame] : []),
       ];
@@ -147,7 +167,6 @@ export async function copyLinkToSelectedElementToClipboard(view: ExcalidrawView,
         const wrapper = container.createDiv?.("excalidraw-prompt-checkboxes") ?? container;
         const ownerDoc = wrapper.ownerDocument ?? document;
 
-        // 1) Anchor checkbox
         const anchorRow = ownerDoc.createElement("label");
         anchorRow.style.display = "flex";
         anchorRow.style.alignItems = "center";
@@ -169,7 +188,6 @@ export async function copyLinkToSelectedElementToClipboard(view: ExcalidrawView,
         anchorRow.appendChild(anchorText);
         wrapper.appendChild(anchorRow);
 
-        // 2) Frame name checkbox (only if frame name is valid)
         if (frameNameIsValid) {
           const frameRow = ownerDoc.createElement("label");
           frameRow.style.display = "flex";
@@ -195,7 +213,6 @@ export async function copyLinkToSelectedElementToClipboard(view: ExcalidrawView,
       },
     );
   } finally {
-    // Persist checkbox values when the prompt closes
     const changed =
       view.plugin.settings.copyLinkToElemenetAnchorTo100 !== anchorTo100 ||
       view.plugin.settings.copyFrameLinkByName !== copyFrameLinkByName;

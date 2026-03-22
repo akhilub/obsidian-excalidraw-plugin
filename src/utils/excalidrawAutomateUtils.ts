@@ -1,24 +1,28 @@
 import { ExcalidrawAutomate } from "src/shared/ExcalidrawAutomate";
-import { DataURL } from "@zsviczian/excalidraw/types/excalidraw/types";
+import { BinaryFileData, DataURL } from "@zsviczian/excalidraw/types/excalidraw/types";
 import ExcalidrawPlugin from "src/core/main";
+import { getTextMode } from "src/shared/TextMode";
 import {
   ExcalidrawElement,
   ExcalidrawImageElement,
   FileId,
+  FixedPoint,
 } from "@zsviczian/excalidraw/types/element/src/types";
 import { normalizePath, TFile } from "obsidian";
 
-import ExcalidrawView, { getTextMode } from "src/view/ExcalidrawView";
+import type ExcalidrawView from "src/view/ExcalidrawView";
 import {
   GITHUB_RELEASES,
   getCommonBoundingBox,
-  restore,
+  IMAGE_TYPES,
+  restoreElements,
   REG_LINKINDEX_INVALIDCHARS,
   THEME_FILTER,
   EXCALIDRAW_PLUGIN,
   getFontFamilyString,
   getLineHeight,
   measureText,
+  nanoid,
 } from "src/constants/constants";
 import {
   //debug,
@@ -30,7 +34,7 @@ import {
   isVersionNewerThanOther,
   scaleLoadedImage,
 } from "src/utils/utils";
-import { GenericInputPrompt, NewFileActions } from "src/shared/Dialogs/Prompt";
+import { GenericInputPrompt, LaTexPrompt, NewFileActions } from "src/shared/Dialogs/Prompt";
 import { t } from "src/lang/helpers";
 import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
 import {
@@ -38,7 +42,7 @@ import {
   extractCodeBlocks as _extractCodeBlocks,
 } from "../utils/AIUtils";
 import { EmbeddedFilesLoader } from "src/shared/EmbeddedFileLoader";
-import { SVGColorInfo } from "src/types/excalidrawAutomateTypes";
+import { ScriptSettingValue, SVGColorInfo } from "src/types/excalidrawAutomateTypes";
 import { ExcalidrawData, getExcalidrawMarkdownHeaderSection, REG_LINKINDEX_HYPERLINK, REGEX_LINK } from "src/shared/ExcalidrawData";
 import { getFrameBasedOnFrameNameOrId, sceneRemoveInternalLinks } from "./excalidrawViewUtils";
 import { ScriptEngine } from "src/shared/Scripts";
@@ -150,6 +154,49 @@ export function errorMessage(message: string, source: string):void {
   }
 }
 
+export function isImageOrPDFTransclusion(
+  ea: ExcalidrawAutomate,
+  text: string,
+): boolean {
+  const trimmed = text?.trim();
+  if (!trimmed?.startsWith("![[") || !trimmed.endsWith("]]")) {
+    return false;
+  }
+
+  const content = trimmed.slice(3, -2).trim();
+  if (!content) {
+    return false;
+  }
+
+  const path = content.split("|")[0]?.trim();
+  if (!path) {
+    return false;
+  }
+
+  if (/^[^#]*#page=\d*(&\w*=[^&]+){0,}&rect=\d*,\d*,\d*,\d*/.test(path)) {
+    return true;
+  }
+
+  const [linkPath, subpath] = path.split("#");
+  const extension = linkPath.substring(linkPath.lastIndexOf(".") + 1).toLowerCase();
+  if (IMAGE_TYPES.includes(extension) || extension === "pdf") {
+    return true;
+  }
+
+  const sourcePath = ea.targetView?.file?.path;
+  const file = sourcePath
+    ? ea.plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath)
+    : null;
+
+  if (!file) {
+    return false;
+  }
+
+  return IMAGE_TYPES.includes(file.extension.toLowerCase())
+    || file.extension.toLowerCase() === "pdf"
+    || (ea.isExcalidrawFile(file) && !!subpath);
+}
+
 export function isColorStringTransparent(color: string): boolean {
   const rgbaHslaTransparentRegex = /^(rgba|hsla)\(.*?,.*?,.*?,\s*0(\.0+)?\)$/i;
   const hexTransparentRegex = /^#[a-fA-F0-9]{6}00$/i;
@@ -190,10 +237,6 @@ export function getLineBox(
   };
 }
 
-export function getFontFamily(id: number):string {
-  return getFontFamilyString({fontFamily:id})
-}
-
 export function _measureText(
   newText: string,
   fontSize: number,
@@ -210,7 +253,7 @@ export function _measureText(
   }
   const metrics = measureText(
     newText,
-    `${fontSize.toString()}px ${getFontFamily(fontFamily)}` as any,
+    `${fontSize.toString()}px ${getFontFamilyString({fontFamily})}` as any,
     lineHeight
   );
   return { w: metrics.width, h: metrics.height };
@@ -284,10 +327,19 @@ export async function getTemplate(
     }
     if(filenameParts.hasFrameref || filenameParts.hasClippedFrameref) {
       const el = getFrameBasedOnFrameNameOrId(filenameParts.blockref,scene.elements);
-      if(el) {
-        groupElements = el.frameRole === "marker"
-        ? plugin.ea.getElementsInArea(scene.elements, el).concat(el)
-        : plugin.ea.getElementsInFrame(el,scene.elements, filenameParts.hasClippedFrameref);
+      if(el && el.type === "frame" && el.frameRole === "marker") {
+        const rect = cloneElement(el);
+        rect.type = "rectangle";
+        rect.id = nanoid();
+        rect.opacity = 0;
+        rect.roundness = null;
+        rect.roughness = 0;
+        rect.strokeWidth = 0.1;
+        rect.fillStyle = "solid";
+        scene.elements.push(rect);
+        groupElements = plugin.ea.getElementsInArea(scene.elements, rect).concat(el);
+      } else {
+        groupElements = plugin.ea.getElementsInFrame(el,scene.elements, filenameParts.hasClippedFrameref);
       }
     }
     if(filenameParts.hasArearef) {
@@ -397,6 +449,7 @@ export async function createPNG(
   depth: number,
   padding?: number,
   imagesDict?: any,
+  overrideFiles?: Record<ExcalidrawElement["id"], BinaryFileData>,
 ): Promise<Blob> {
   if (!loader) {
     loader = new EmbeddedFilesLoader(plugin);
@@ -438,6 +491,7 @@ export async function createPNG(
     },
     padding,
     scale,
+    overrideFiles,
   );
 }
 
@@ -513,6 +567,7 @@ export async function createSVG(
   imagesDict?: any,
   convertMarkdownLinksToObsidianURLs: boolean = false,
   includeInternalLinks: boolean = true,
+  overrideFiles?: Record<ExcalidrawElement["id"], BinaryFileData>,
 ): Promise<SVGSVGElement> {
   if (!loader) {
     loader = new EmbeddedFilesLoader(plugin);
@@ -563,6 +618,7 @@ export async function createSVG(
     },
     padding,
     null,
+    overrideFiles,
   );
 
   if (withTheme && theme === "dark") addFilterToForeignObjects(svg);
@@ -582,7 +638,7 @@ export async function createSVG(
     }
     const isNonMarkerFrameRef = filenameParts.hasFrameref && el.length === 1 && el[0].type === "frame" && el[0].frameRole !== "marker";
 
-    if(el.length>0 && !isNonMarkerFrameRef) {
+    if (el.length > 0 && !isNonMarkerFrameRef) {
       const containerId = el[0].containerId;
       if(containerId) {
         el = el.concat(elements.filter((el: ExcalidrawElement)=>el.id === containerId));
@@ -650,24 +706,32 @@ export function repositionElementsToCursor(
     element.y = element.y + offsetY;
   });
   
-  return restore({elements}, null, null).elements;
+  return restoreElements(elements, null, {refreshDimensions: true, repairBindings: true});
 }
 
 export const insertLaTeXToView = (view: ExcalidrawView, center: boolean = false) => {
   const app = view.plugin.app;
   const ea = getEA(view) as ExcalidrawAutomate;
-  GenericInputPrompt.Prompt(
-    view,
-    view.plugin,
-    app,
-    t("ENTER_LATEX"),
-    "\\color{red}\\oint_S {E_n dA = \\frac{1}{{\\varepsilon _0 }}} Q_{inside}",
-    view.plugin.settings.latexBoilerplate,
-    undefined,
-    3
-  ).then(async (formula: string) => {
+  LaTexPrompt.Prompt(app, t("ENTER_LATEX"), view.plugin.settings.latexBoilerplate)
+  .then(async (formula: string) => {
+    const lastLatexEl = ea.getViewElements()
+        .filter((el) => el.type === "image" && view.excalidrawData.hasEquation(el.fileId))
+        .reduce(
+          (maxel, curr) => (!maxel || curr.updated > maxel.updated) ? curr : maxel,
+          undefined 
+        ) as ExcalidrawImageElement;
+    let scaleX = 1;
+    let scaleY = 1;
+    if (lastLatexEl) {
+      const equation = view.excalidrawData.getEquation(lastLatexEl.fileId);
+      const dataurl = await ea.tex2dataURL(equation.latex);
+      if (dataurl.size.width > 0 && dataurl.size.height > 0) {
+        scaleX = lastLatexEl.width/dataurl.size.width;
+        scaleY = lastLatexEl.height/dataurl.size.height;
+      }
+    }
     if (formula) {
-      const id = await ea.addLaTex(0, 0, formula);
+      const id = await ea.addLaTex(0, 0, formula, scaleX, scaleY);
       if(center) {
         const el = ea.getElement(id);
         let {width, height} = el;
@@ -845,7 +909,7 @@ export const cloneElement = (el: ExcalidrawElement):any => {
 }
 
 export const verifyMinimumPluginVersion = (requiredVersion: string): boolean => {
-  return PLUGIN_VERSION === requiredVersion || isVersionNewerThanOther(PLUGIN_VERSION,requiredVersion);
+  return PLUGIN_VERSION.split("-")[0] === requiredVersion || isVersionNewerThanOther(PLUGIN_VERSION.split("-")[0],requiredVersion);
 }
 
 export const getBoundTextElementId = (container: ExcalidrawElement | null) => {
@@ -853,3 +917,74 @@ export const getBoundTextElementId = (container: ExcalidrawElement | null) => {
     ? container?.boundElements?.find((ele) => ele.type === "text")?.id || null
     : null;
 };
+
+/**
+ * 
+ * FixedPoint represents the fixed point binding information in form of a vertical and
+ * horizontal ratio (i.e. a percentage value in the 0.0-1.0 range). This ratio
+ * gives the user selected fixed point by multiplying the bound element width
+ * with fixedPoint[0] and the bound element height with fixedPoint[1] to get the
+ * bound element-local point coordinate.
+ */
+export const normalizeFixedPoint = <T extends FixedPoint | null | undefined>(
+  fixedPoint: T,
+): T extends null ? null : FixedPoint => {
+  if (!fixedPoint) {
+    return [0.50001, 0.5001] as any as T extends null ? null : FixedPoint;
+  }
+  if (fixedPoint[0] < 0 || fixedPoint[0] > 1) {
+    fixedPoint[0] = 0.5001;
+  }
+  if (fixedPoint[1] < 0 || fixedPoint[1] > 1) {
+    fixedPoint[1] = 0.5001;
+  }
+  // Do not allow a precise 0.5 for fixed point ratio
+  // to avoid jumping arrow heading due to floating point imprecision
+  if (
+    fixedPoint &&
+    (Math.abs(fixedPoint[0] - 0.5) < 0.0001 ||
+      Math.abs(fixedPoint[1] - 0.5) < 0.0001)
+  ) {
+    return fixedPoint.map((ratio) =>
+      Math.abs(ratio - 0.5) < 0.0001 ? 0.5001 : ratio,
+    ) as T extends null ? null : FixedPoint;
+  }
+  return fixedPoint as any as T extends null ? null : FixedPoint;
+};
+
+export const normalizeBindMode = (bindMode?: string): "orbit" | "inside" => {
+  if (!bindMode || (bindMode !== "orbit" && bindMode !== "inside")) {
+    return "orbit";
+  }
+  return bindMode;
+};
+
+/**
+ * Ensures that plugin.settings.scriptEngineSettings and the active script's settings object exist.
+ * Handles undefined/null during initialization.
+ *
+ * Note: kept in utils (not as an EA private method) so it won't be exposed on window.ExcalidrawAutomate.
+ */
+export function ensureActiveScriptSettingsObject(
+  ea: ExcalidrawAutomate
+): Record<string, ScriptSettingValue> | null {
+  const activeScript = ea?.activeScript;
+  const plugin = ea?.plugin;
+
+  if (!activeScript || !plugin?.settings) {
+    return null;
+  }
+
+  // Ensure the top-level container exists
+  if (!plugin.settings.scriptEngineSettings || typeof plugin.settings.scriptEngineSettings !== "object") {
+    plugin.settings.scriptEngineSettings = {};
+  }
+
+  // Ensure the per-script settings object exists (handle null/undefined)
+  const current = plugin.settings.scriptEngineSettings[activeScript];
+  if (!current || typeof current !== "object") {
+    plugin.settings.scriptEngineSettings[activeScript] = {};
+  }
+
+  return plugin.settings.scriptEngineSettings[activeScript] as Record<string, ScriptSettingValue>;
+}

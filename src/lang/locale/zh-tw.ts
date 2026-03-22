@@ -4,7 +4,7 @@ import {
   CJK_FONTS,
 } from "src/constants/constants";
 import { TAG_AUTOEXPORT, TAG_MDREADINGMODE, TAG_PDFEXPORT } from "src/constants/constSettingsTags";
-import { labelALT, labelCTRL, labelMETA, labelSHIFT } from "src/utils/modifierkeyHelper";
+import { labelALT, labelCTRL, labelMETA, labelSHIFT } from "src/utils/modifierKeyLabels";
 
 declare const PLUGIN_VERSION:string;
 
@@ -18,7 +18,7 @@ export default {
   ZIP_CURRENT_FILE: "壓縮當前 Excalidraw 檔案",
   PUBLISH_SVG_CHECK: "Obsidian Publish：搜尋過期的 SVG 和 PNG 匯出檔案",
   EMBEDDABLE_PROPERTIES: "Embeddable 元素設定",
-  EMBEDDABLE_RELATIVE_ZOOM: "使元素的縮放等級等於當前繪圖的縮放等級",
+  EMBEDDABLE_RELATIVE_ZOOM: "使元素的縮放級別等於當前繪圖的縮放級別",
   OPEN_IMAGE_SOURCE: "開啟 Excalidraw 繪圖",
   INSTALL_SCRIPT: "安裝此指令碼",
   UPDATE_SCRIPT: "有可用更新 - 點選安裝",
@@ -30,13 +30,14 @@ export default {
     "指令碼已是最新 - 點選重新安裝",
   OPEN_AS_EXCALIDRAW: "開啟為 Excalidraw 繪圖",
   TOGGLE_MODE: "在 Excalidraw 和 Markdown 模式之間切換",
-  DUPLICATE_IMAGE: "複製選定的影像，並分配一個不同的影像 ID",
+  DUPLICATE_IMAGE: "複製所選影像，並分配一個不同的影像 ID",
   CONVERT_NOTE_TO_EXCALIDRAW: "轉換：空白 Markdown 文件 => Excalidraw 繪圖",
   CONVERT_EXCALIDRAW: "轉換： *.excalidraw => *.md",
   CREATE_NEW: "新建繪圖檔案",
   CONVERT_FILE_KEEP_EXT: "轉換：*.excalidraw => *.excalidraw.md",
   CONVERT_FILE_REPLACE_EXT: "轉換：*.excalidraw => *.md (相容 Logseq)",
   DOWNLOAD_LIBRARY: "匯出 stencil 庫為 *.excalidrawlib 檔案",
+  OPEN_SIDEPANEL: "開啟 Excalidraw 側邊面板",
   OPEN_EXISTING_NEW_PANE: "開啟已有的繪圖 - 於新面板",
   OPEN_EXISTING_ACTIVE_PANE:
     "開啟已有的繪圖 - 於當前面板",
@@ -59,10 +60,9 @@ export default {
   TOGGLE_LOCK: "文字元素：原文模式（RAW）⟺ 預覽模式（PREVIEW）",
   DELETE_FILE: "從倉庫中刪除所選圖片（或以影像形式嵌入的 Markdown）原始檔",
   MARKER_FRAME_SHOW: "顯示標記畫框",
-  MARKER_FRAME_HIDE: "隱藏標記畫框",
   MARKER_FRAME_TITLE_SHOW: "顯示標記畫框名稱",
-  MARKER_FRAME_TITLE_HIDE: "隱藏標記畫框名稱",
   COPY_ELEMENT_LINK: "複製所選元素的 [[file#^id]] 連結",
+  FRAME_WITH_NAME: "按名稱複製畫框連結",
   COPY_DRAWING_LINK: "複製繪圖的 ![[drawing]] 連結",
   INSERT_LINK_TO_ELEMENT:
     `單擊=複製所選元素的 [[file#^id]] 連結\n${labelCTRL()}=複製元素所在分組為 [[file#^group=id]] 連結\n${labelSHIFT()}=複製所選元素所在區域為 [[file#^area=id]] 連結`,
@@ -91,9 +91,11 @@ export default {
   CONVERT_CARD_TO_FILE: "將“背景筆記”卡片儲存到檔案",
   ERROR_TRY_AGAIN: "請重試。",
   PASTE_CODEBLOCK: "貼上程式碼塊",
+  INVERT_IMAGES_IN_DARK_MODE: "深色主題下反轉顏色",
   INSERT_LATEX:
     `插入 LaTeX 公式到當前繪圖中`,
   ENTER_LATEX: "輸入 LaTeX 公式",
+  EDIT_LATEX: "編輯 LaTeX 公式",
   READ_RELEASE_NOTES: "閱讀本外掛的更新說明",
   RUN_OCR: "OCR 整個繪圖：識別塗鴉和圖片裡的文字並複製到剪貼簿和筆記屬性中",
   RERUN_OCR: "重新 OCR 整個繪圖：識別塗鴉和圖片裡的文字並複製到剪貼簿和筆記屬性中",
@@ -153,6 +155,7 @@ export default {
   OPEN_AS_MD: "開啟為 Markdown",
   EXPORT_IMAGE: `匯出為圖片`,
   OPEN_LINK: "開啟所選元素裡的連結 \n（按住 Shift 在新面板開啟）",
+  EXCALIDRAW_SIDEPANEL: "Excalidraw 側邊面板",
   EXPORT_EXCALIDRAW: "匯出為 .excalidraw 檔案（舊版繪圖檔案格式）",
   LINK_BUTTON_CLICK_NO_TEXT:
     "請選擇一個包含內部或外部連結的元素。\n",
@@ -185,8 +188,6 @@ export default {
   CONVERT_TO_MARKDOWN: "轉存為 Markdown 文件（並嵌入當前繪圖）",
   SELECT_TEXTELEMENT_ONLY: "只選擇文字元素（非容器）",
   REMOVE_LINK: "移除文字元素連結",
-  LASER_ON: "啟用雷射筆",
-  LASER_OFF: "關閉雷射筆",
   WELCOME_RANK_NEXT: "張繪圖之後，到達下一等級！",
   WELCOME_RANK_LEGENDARY: "您已是繪圖大師，續寫傳奇吧！",
   WELCOME_COMMAND_PALETTE: '在命令面板中輸入 "Excalidraw"',
@@ -295,7 +296,7 @@ export default {
   SCRIPT_FOLDER_DESC:
     "此資料夾用於存放 Excalidraw 自動化指令碼。" +
     "您可以在 Obsidian 命令面板中執行這些指令碼，" +
-    "還可以為喜歡的指令碼分配快捷鍵，就像為其他 Obsidian 命令分配快捷鍵一樣。<br>" +
+    "還可以為喜歡的指令碼分配熱鍵，就像為其他 Obsidian 命令分配熱鍵一樣。<br>" +
     "該項不能設為倉庫根目錄。",
   AI_HEAD: "AI（實驗性）",
   AI_DESC: `OpenAI GPT API 的設定。` +
@@ -312,17 +313,16 @@ export default {
   AI_OPENAI_DEFAULT_MODEL_DESC:
     "使用哪個 AI 模型來生成文字。請填寫有效的 OpenAI 模型名稱。" +
     "您可訪問 <a href='https://platform.openai.com/docs/models'>OpenAI 網站</a> 瞭解更多模型資訊。",
-  AI_OPENAI_DEFAULT_MODEL_PLACEHOLDER: "gpt-3.5-turbo-1106",
+  AI_OPENAI_DEFAULT_MODEL_PLACEHOLDER: "gpt-5-mini",
   AI_OPENAI_DEFAULT_MAX_TOKENS_NAME: "最大 token 數",
   AI_OPENAI_DEFAULT_MAX_TOKENS_DESC:
-    "API 生成的最大 token 數。設定為 0 以忽略 max_tokens 欄位（適用於不支援該引數的模型，如 GPT-5）。",
+    "API 響應中生成的最大 token 數。設定為 0 以忽略 max_tokens 欄位（適用於不支援該引數的模型，如 GPT-5）。",
   AI_OPENAI_DEFAULT_IMAGE_MODEL_NAME: "預設的圖片 AI 模型",
   AI_OPENAI_DEFAULT_IMAGE_MODEL_DESC:
-    "使用哪個 AI 模型來生成圖片。圖生圖會強制使用 dall-e-2 模型，" +
-    "因為目前只有該模型支援 Image editing and variations。" +
+    "使用哪個 AI 模型來生成圖片。圖生圖目前只有 dall-e-2 和 gpt-image-1 模型支援 Image editing and variations。" +
     "請填寫有效的 OpenAI 模型名稱。" +
     "您可訪問 <a href='https://platform.openai.com/docs/models'>OpenAI 網站</a> 瞭解更多模型資訊。",
-  AI_OPENAI_DEFAULT_IMAGE_MODEL_PLACEHOLDER: "dall-e-3",
+  AI_OPENAI_DEFAULT_IMAGE_MODEL_PLACEHOLDER: "gpt-image-1",
   AI_OPENAI_DEFAULT_VISION_MODEL_NAME: "預設的 AI 視覺模型",
   AI_OPENAI_DEFAULT_VISION_MODEL_DESC:
     "根據文字生成圖片時，使用哪個 AI 視覺模型。請填寫有效的 OpenAI 模型名稱。" +
@@ -332,7 +332,7 @@ export default {
     "預設的 OpenAI API URL。請填寫有效的 OpenAI API URL。" +
     "Excalidraw 會透過該 URL 傳送 API 請求給 OpenAI。我沒有對該項做任何錯誤處理，請謹慎修改。",
   AI_OPENAI_DEFAULT_IMAGE_API_URL_NAME: "OpenAI 圖片生成 API URL",
-  AI_OPENAI_DEFAULT_VISION_MODEL_PLACEHOLDER: "輸入預設 AI 模型名稱，如 gpt-4o",
+  AI_OPENAI_DEFAULT_VISION_MODEL_PLACEHOLDER: "輸入預設 AI 模型名稱，如 gpt-5-mini",
   SAVING_HEAD: "儲存",
   SAVING_DESC: "包括：壓縮，自動儲存的時間間隔，檔案的命名格式和副檔名等。",
   COMPRESS_NAME: "壓縮 Excalidraw JSON",
@@ -461,9 +461,13 @@ export default {
   DESKTOP_UI_MODE_DESC: "桌面端裝置預設 UI 模式。",
   TABLET_UI_MODE_NAME: "平板端偏好模式",
   TABLET_UI_MODE_DESC: "平板端裝置預設 UI 模式。",
+  PHONE_UI_MODE_NAME: "手機端偏好模式",
+  PHONE_UI_MODE_DESC: "手機端裝置預設 UI 模式。",
   MODE_FULL: "Desktop-mode",
   MODE_COMPACT: "Compact-mode",
   MODE_TRAY: "Tray-mode",
+  MODE_PHONE: "Phone-mode",
+  REAPPLY_UI_MODE_BUTTON: "重新應用 UI 模式",
   TRAY_MODE_NAME: "啟用托盤模式",
   PREFER_COMPACT_MODE_DESKTOP_NAME: "在桌面端偏好緊湊模式",
   PREFER_COMPACT_MODE_DESKTOP_DESC: "切換托盤模式時，開啟該項，Excalidraw 將在緊湊模式與托盤模式之間切換。" +
@@ -508,9 +512,8 @@ export default {
   GRID_DYNAMIC_COLOR_DESC:
     "<b>開啟：</b>更改網格顏色以匹配繪圖顏色。<br><b>關閉：</b>將以下顏色用作網格顏色。",
   GRID_COLOR_NAME: "網格顏色",
-  GRID_OPACITY_NAME: "網格透明度",
-  GRID_OPACITY_DESC: "設定網格的透明度。還將控制將箭頭繫結到元素時繫結框的透明度。" +
-    "0 全透明 ⟺ 100 不透明。",
+  GRID_OPACITY_NAME: "網格不透明度",
+  GRID_OPACITY_DESC: "設定網格的不透明度。0 全透明 ⟺ 100 不透明。",
   GRID_DIRECTION_NAME: "網格方向",
   GRID_DIRECTION_DESC: "第一個開關顯示/隱藏水平網格，第二個開關顯示/隱藏垂直網格。",
   GRID_HORIZONTAL: "渲染水平網格",
@@ -541,7 +544,8 @@ export default {
   LONG_PRESS_MOBILE_NAME: "長按開啟（移動端）",
   LONG_PRESS_MOBILE_DESC: "長按開啟在 Markdown 文件中嵌入的 Excalidraw 繪圖。單位：毫秒。",
   DOUBLE_CLICK_LINK_OPEN_VIEW_MODE: "在檢視模式下允許雙擊開啟連結",
-
+  ELEMENT_LINK_SYNC_NAME: "文字元素同步正文連結",
+  ELEMENT_LINK_SYNC_DESC: "若開啟，Excalidraw 將匹配 2.19.0 之前的行為：始終將正文第一個連結複製到元素連結欄位。匯出 SVG/PNG 僅在元素連結欄位包含單個連結（不包括正文內的連結）時保留連結。開啟：若你依賴正文連結並希望元素連結始終映象第一個連結。關閉：若你獨立管理元素連結，用於標籤、行內連結本體等元資料、或多個連結，如 Dataview 風格的筆記 '(reminds me of:: [[link]]) #noteToSelf'。",
   FOCUS_ON_EXISTING_TAB_NAME: "聚焦於當前標籤頁",
   FOCUS_ON_EXISTING_TAB_DESC: "當開啟一個連結時，如果該檔案已經開啟，Excalidraw 將會聚焦到現有的標籤頁上。" +
     "啟用該項時，如果檔案已開啟，將覆蓋“在相鄰面板中開啟”，但“開啟所選繪圖的背景筆記”命令面板操作除外。",
@@ -564,6 +568,12 @@ export default {
     "文字元素處於 PREVIEW 模式時，在內部連結的兩側顯示中括號。<br>" +
     "可為某個繪圖單獨設定該項，方法是在其 frontmatter 中新增如 <code>"
   }${FRONTMATTER_KEYS["link-brackets"].name}: true/false</code> 的鍵值對。`,
+  /*LINK_DETECTION_NAME: "Do not auto-create element link from text",
+  LINK_DETECTION_DESC: "By default, Excalidraw will automatically create an element link when you type or paste a valid " +
+    "[[Obsidian link]] or a (web link) into a Text Element. This link overrides whatever element link you may have set previously. " +
+    "Even if you delete the element link, if the text element contains a valid link, Excalidraw will recreate the element link. " +
+    "If you turn this setting on, Excalidraw will not auto-create element links from text. You can still manually set element links " +
+    `Links in the text will still be navigable when you ${labelCTRL()} + CLICK the element.`,*/
   LINK_PREFIX_NAME: "內部連結的字首",
   LINK_PREFIX_DESC: `${
     "文字元素處於 PREVIEW 模式時，如果其中包含連結，則新增此字首。<br>" +
@@ -585,9 +595,9 @@ export default {
     `<b>開啟：</b>在 Excalidraw <u>檢視模式（View）</u>下，滑鼠懸停在 <code>[[內部連結]]</code> 上即可預覽；` +
     "而在<u>普通模式（Normal）</u>下，滑鼠懸停在內部連結右上角的藍色標識上即可預覽。<br>" +
     `<b>關閉：</b>滑鼠懸停在 <code>[[內部連結]]</code> 上，並且按住 ${labelCTRL()} 才能預覽。`,
-  LINKOPACITY_NAME: "連結標識的透明度",
+  LINKOPACITY_NAME: "連結標識的不透明度",
   LINKOPACITY_DESC:
-    "含有連結的元素，其右上角的連結標識的透明度。0 全透明 ⟺ 100 不透明。",
+    "含有連結的元素，其右上角的連結標識的不透明度。0 全透明 ⟺ 100 不透明。",
   LINK_CTRL_CLICK_NAME:
     `按住 ${labelCTRL()} 並點選含有 [[連結]] 或 [別名](連結) 的文字來開啟連結`,
   LINK_CTRL_CLICK_DESC:
@@ -679,7 +689,7 @@ export default {
   EMBED_THEME_BACKGROUND: "影像的主題和背景色",
   EMBED_IMAGE_CACHE_NAME: "為嵌入到 Markdown 文件中的繪圖建立預覽圖快取",
   EMBED_IMAGE_CACHE_DESC: "可提高下次嵌入的速度。" +
-    "但如果繪圖包含子繪圖，（當子繪圖改變時）您需要開啟父繪圖並手動儲存，才能夠更新預覽圖。",
+    "但如果繪圖包含子繪圖，（當子繪圖改變時）預覽圖不會更新，直到您開啟繪圖並手動儲存。",
   SCENE_IMAGE_CACHE_NAME: "快取場景中巢狀的繪圖",
   SCENE_IMAGE_CACHE_DESC: "Excalidraw 將智慧地嘗試識別巢狀的繪圖的子元素是否發生變化，並更新快取。" +
     "這將加快渲染過程，特別是在您的場景中有深度巢狀的繪圖時。<br>" +
@@ -692,7 +702,7 @@ export default {
   EMBED_REUSE_EXPORTED_IMAGE_DESC:
     "該項與下方“匯出”部分“匯出設定”中的 <a href='#"+TAG_AUTOEXPORT+"'>自動匯出 SVG/PNG 副本</a> 選項配合使用。如果嵌入到 Markdown 文件中的繪圖檔案存在同名的 SVG/PNG 副本，則將其作為預覽圖，而不再重新生成。<br>" +
     "該項能夠提高 Markdown 文件的開啟速度，尤其是當嵌入到 Markdown 文件中的繪圖檔案中含有大量圖片或 MD-Embed 時。" +
-    "但是，該項也可能導致預覽圖無法即時反應繪圖檔案或者 Obsidian 主題的修改。<br>" +
+    "但是，該項也可能導致預覽圖無法立即響應繪圖檔案或者 Obsidian 主題的修改。<br>" +
     "該項僅作用於嵌入到 Markdown 文件中的繪圖。" +
     "該項無法提升繪圖檔案的開啟速度。詳見 <a href='https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/tag/1.6.23' target='_blank'>此說明</a>。",
   /*EMBED_PREVIEW_SVG_NAME: "生成 SVG 格式的預覽圖",
@@ -711,7 +721,7 @@ export default {
   EMBED_WIDTH_NAME: "預覽圖的預設寬度",
   EMBED_WIDTH_DESC:
     "嵌入到 Markdown 文件中的繪圖的預覽圖的預設寬度。該項也適用於滑鼠懸停時浮現的預覽圖。<br>" +
-    "可為某個要嵌入到 Markdown 文件中的繪圖檔案單獨設定，" +
+    "可為某個要嵌入到 Markdown 文件中的繪圖單獨設定，" +
     "方法是修改相應的內部連結格式為如 <code>![[drawing.excalidraw|100]]</code> 或 <code>[[drawing.excalidraw|100x100]]</code>。",
   EMBED_HEIGHT_NAME: "預覽圖的預設高度",
   EMBED_HEIGHT_DESC:
@@ -923,9 +933,9 @@ export default {
   SELECT_FILE_TO_LINK: "選擇要以連結形式插入到當前繪圖中的檔案",
   SELECT_COMMAND_PLACEHOLDER: "選擇要插入到當前繪圖中的命令",
   SELECT_DRAWING: "選擇要以影像形式嵌入到當前繪圖中的圖片或繪圖檔案",
-  TYPE_FILENAME: "鍵入要選擇的繪圖名稱",
+  TYPE_FILENAME: "輸入要選擇的繪圖名稱",
   SELECT_FILE_OR_TYPE_NEW:
-    "選擇已有繪圖，或者鍵入新繪圖檔案的名稱，然後按回車。",
+    "選擇已有繪圖，或者輸入新繪圖檔案的名稱，然後按回車。",
   SELECT_TO_EMBED: "選擇要嵌入到當前 Markdown 文件中的繪圖",
   SELECT_MD: "選擇要以影像形式嵌入到當前繪圖中的 Markdown 文件",
   SELECT_PDF: "選擇要以影像形式嵌入到當前繪圖中的 PDF",
@@ -1017,18 +1027,18 @@ export default {
   ES_FILENAME_VISIBLE: "顯示頁內標題",
   ES_BACKGROUND_HEAD: "背景色",
   ES_BACKGROUND_DESC_INFO: "點選此處檢視更多顏色資訊",
-  ES_BACKGROUND_DESC_DETAIL: "背景色僅影響預覽模式的 MD-Embeddable。在編輯模式，它會根據場景（透過筆記屬性設定）或外掛設定，遵循 Obsidian 的深色/淺色主題。背景色有兩層：元素背景色（下層顏色）和上層顏色。選擇“匹配元素”表示兩層都遵循元素背景色。選擇“匹配繪圖”或特定背景色不會改變元素背景色。設定透明度（如 50%）會將繪圖或選定的顏色與元素背景色混合。要移除元素背景色，可以在 Excalidraw 的元素屬性編輯器中將元素背景色設定為透明，這樣只有上層顏色生效。",
+  ES_BACKGROUND_DESC_DETAIL: "背景色僅影響預覽模式的 MD-Embeddable。在編輯模式，它會根據場景（透過筆記屬性設定）或外掛設定，遵循 Obsidian 的深色/淺色主題。背景色有兩層：元素背景色（下層顏色）和上層顏色。選擇“匹配元素”表示兩層都遵循元素背景色。選擇“匹配繪圖”或特定背景色不會改變元素背景色。設定不透明度（如 50%）會將繪圖或所選顏色與元素背景色混合。要移除元素背景色，可以在 Excalidraw 的元素屬性編輯器中將元素背景色設定為透明，這樣只有上層顏色生效。",
   ES_BACKGROUND_MATCH_ELEMENT: "匹配元素背景色",
   ES_BACKGROUND_MATCH_CANVAS: "匹配繪圖背景色",
   ES_BACKGROUND_COLOR: "背景色",
   ES_BORDER_HEAD: "邊框顏色",
   ES_BORDER_COLOR: "邊框顏色",
   ES_BORDER_MATCH_ELEMENT: "匹配元素邊框顏色",
-  ES_BACKGROUND_OPACITY: "背景透明度",
-  ES_BORDER_OPACITY: "邊框透明度",
+  ES_BACKGROUND_OPACITY: "背景不透明度",
+  ES_BORDER_OPACITY: "邊框不透明度",
   ES_EMBEDDABLE_SETTINGS: "MD-Embeddable 設定",
   ES_USE_OBSIDIAN_DEFAULTS: "使用 Obsidian 預設設定",
-  ES_ZOOM_100_RELATIVE_DESC: "使元素的縮放等級等於當前繪圖的縮放等級",
+  ES_ZOOM_100_RELATIVE_DESC: "使元素的縮放級別等於當前繪圖的縮放級別",
   ES_ZOOM_100: "Relative 100%",
 
   //Prompts.ts
@@ -1247,4 +1257,10 @@ export default {
   VERSION_MISMATCH_DISABLE_DESC: "可在以下位置重新啟用：設定 → Excalidraw → 基本 → 警告外掛更新不完整",
   VERSION_MISMATCH_REDOWNLOAD: "重新下載外掛",
   VERSION_MISMATCH_IGNORE: "忽略",
+
+  //InlineLinkSuggester.ts
+  INLINE_HINT: "輸入 [[ 以搜尋並插入連結",
+
+  //SuggestionModal.ts
+  SUGGESTION_NOMATCH: "未找到匹配結果",
 };

@@ -97,7 +97,7 @@ export let {
   exportToSvg,
   exportToBlob,
   mutateElement,
-  restore,
+  restoreElements,
   mermaidToExcalidraw,
   getFontFamilyString,
   getContainerElement,
@@ -106,6 +106,7 @@ export let {
   loadSceneFonts,
   loadMermaid,
   syncInvalidIndices,
+  getDefaultColorPalette,
 } = excalidrawLib;
 
 export function updateExcalidrawLib() {
@@ -123,7 +124,7 @@ export function updateExcalidrawLib() {
       'getCommonBoundingBox',
       'measureText',
       'getLineHeight',
-      'restore'
+      'restoreElements'
     ];
     
     for (const fnName of requiredFunctions) {
@@ -147,7 +148,7 @@ export function updateExcalidrawLib() {
       exportToSvg,
       exportToBlob,
       mutateElement,
-      restore,
+      restoreElements,
       mermaidToExcalidraw,
       getFontFamilyString,
       getContainerElement,
@@ -156,6 +157,7 @@ export function updateExcalidrawLib() {
       loadSceneFonts,
       loadMermaid,
       syncInvalidIndices,
+      getDefaultColorPalette,
     } = excalidrawLib);
   } catch (error) {
     errorHandler.handleError(error, "updateExcalidrawLib", true);
@@ -212,7 +214,7 @@ export const ROUNDNESS = { //should at one point publish @zsviczian/excalidraw/t
   PROPORTIONAL_RADIUS: 2,
   ADAPTIVE_RADIUS: 3,
 } as const;
-export const THEME_FILTER = "invert(100%) hue-rotate(180deg) saturate(1.25)";
+export const THEME_FILTER = "invert(93%) hue-rotate(180deg) saturate(1.25)";
 export const GITHUB_RELEASES = "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/tag/";
 export const URLFETCHTIMEOUT = 3000;
 export const PLUGIN_ID = "obsidian-excalidraw-plugin";
@@ -299,6 +301,7 @@ export const CaptureUpdateAction = {
 
 export const EMBEDDABLE_THEME_FRONTMATTER_VALUES = ["light", "dark", "auto", "dafault"];
 export const VIEW_TYPE_EXCALIDRAW = "excalidraw";
+export const VIEW_TYPE_SIDEPANEL = "excalidraw-sidepanel";
 export const VIEW_TYPE_EXCALIDRAW_LOADING = "excalidraw-loading";
 export const ICON_NAME = "excalidraw-icon";
 export const MAX_COLORS = 5;

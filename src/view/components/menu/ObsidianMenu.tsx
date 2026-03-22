@@ -23,7 +23,7 @@ export function setPen (pen: PenStyle, api: any) {
       ...pen.backgroundColor ? {currentItemBackgroundColor: pen.backgroundColor} : null,
       ...pen.strokeColor ? {currentItemStrokeColor: pen.strokeColor} : null,
       ...pen.fillStyle === "" ? null : {currentItemFillStyle: pen.fillStyle},
-      ...pen.roughness ? null : {currentItemRoughness: pen.roughness},
+      ...(pen.roughness !== null) ? {currentItemRoughness: pen.roughness} : null,
       ...pen.freedrawOnly && !st.resetCustomPen //switching from custom pen to next custom pen
         ? {
           resetCustomPen: {
@@ -156,6 +156,18 @@ export class ObsidianMenu {
     insertFileModal.open();
   }
 
+  private actionToggleFullscreen() {
+    if (this.view.isFullscreen()) {
+      this.view.exitFullscreen();
+    } else {
+      this.view.gotoFullscreen();
+    }
+    this.view.excalidrawAPI?.updateScene({
+      appState: {},
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }
+
   public renderCustomPens (isMobile: boolean, appState: AppState) {
     return(
       appState.customPens?.map((_,index)=>{
@@ -256,13 +268,9 @@ export class ObsidianMenu {
   }
 
   public renderButton (isMobile: boolean, appState: AppState) {
+    const isFullscreen = this.view.isFullscreen();
     return (
-      <div className={clsx(
-        {
-          "ExcalidrawObsidianMenu--mobile": isMobile,
-          "ExcalidrawObsidianMenu": !isMobile,
-        },
-      )}>
+      <>
         <label
           className={clsx(
             "ToolIcon",
@@ -271,7 +279,7 @@ export class ObsidianMenu {
               "is-mobile": isMobile,
             },
           )}
-          onClick={this.actionShowHideMenu.bind(this,isMobile,appState)}
+          onClick={this.actionShowHideMenu.bind(this, isMobile, appState)}
         >
           <div className="ToolIcon__icon" aria-label={t("OBSIDIAN_TOOLS_PANEL")}>
             {ICONS.obsidian}
@@ -291,9 +299,23 @@ export class ObsidianMenu {
             {ICONS["add-file"]}
           </div>
         </label>
-        {this.renderCustomPens(isMobile,appState)}
-        {this.renderPinnedScriptButtons(isMobile,appState)}
-      </div>
+        <label
+          className={clsx(
+            "ToolIcon",
+            "ToolIcon_size_medium",
+            {
+              "is-mobile": isMobile,
+            },
+          )}
+          onClick={this.actionToggleFullscreen.bind(this)}
+        >
+          <div className="ToolIcon__icon" aria-label={isFullscreen ? t("EXIT_FULLSCREEN") : t("GOTO_FULLSCREEN")}>
+            {isFullscreen ? ICONS.exitFullScreen : ICONS.gotoFullScreen}
+          </div>
+        </label>
+        {this.renderCustomPens(isMobile, appState)}
+        {this.renderPinnedScriptButtons(isMobile, appState)}
+      </>
     );
   };
 

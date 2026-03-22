@@ -17,6 +17,342 @@ I build this plugin in my free time, as a labor of love. Curious about the philo
 
 <div class="ex-coffee-div"><a href="https://ko-fi.com/zsolt"><img src="https://storage.ko-fi.com/cdn/kofi6.png?v=6" border="0" alt="Buy Me a Coffee at ko-fi.com"  height=45></a></div>
 `,
+"2.21.2":`
+## Fixed
+- The new ExcalidrawAutomate function \`parseText()\` broke if the text was a transcluded image or PDF document, causing downstream paste issues in MindMap Builder.
+- Fix custom pen sloppiness not being saved to a template drawing [#2715](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2715) 🙏[@sreedharsreeram](https://github.com/sreedharsreeram)
+
+`,
+"2.21.1":`
+## Fixed
+- Drawing and editor fails to initialize in a new window [#2713](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2713)
+- Duplicate selected image with a different image ID command palette action did not duplicate cropped PDF images.
+- Memory leak issue with PDF import as images.
+
+## New
+- Put caret at pointer position when clicking on selected text element [#10970](https://github.com/excalidraw/excalidraw/pull/10970)
+
+`,
+"2.21.0":`
+## New
+- LaTeX editor is now floating [#2684](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2684) 🙏[@TravisLEBLANC1](https://github.com/TravisLEBLANC1), [#2698](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2698) 🙏[@heinrich26](https://github.com/heinrich26)
+- Inline link suggester supports new triggers \`![[drawing#^frame=\` and \`![[drawing#^clippedframe=\`, thus it is easy to reference frames like pdf pages, slides or other parts of your scene marked using marker frames.
+- Support for mermaid Entity Relationship Diagrams, and new ERD/cardinality arrowheads [#10940](https://github.com/excalidraw/excalidraw/pull/10940)
+- New Context Menu options to disable arrow binding and midpoint snapping [#10906](https://github.com/excalidraw/excalidraw/pull/10906)
+- Improved UI styling and icons are better aligned with Obsidian [#2703](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2703), [#2687](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2687), [#2697](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2697) 🙏[@heinrich26](https://github.com/heinrich26)
+
+## Fixed
+- Sizing of embedded images in Markdown when image type is set to SVG [#2685](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2685)
+- Fixed Enter, Up/Down arrows, and TAB keys stopped working in text elements after deleting the \`#\` character [#2704](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2704)
+
+## MindMap Builder
+- Fixed navigation (arrow keys) scoping and recognition
+- Added new feature to paste images and single Excalidraw elements like container with text, text element, or image element directly as a map leaf (using the MindMap Builder default paste shortcut: ALT/OPT+V)
+- Added new action to toggle a markdown link between markdown embeddable and link as text. Default shortcut is ALT/OPT+E.
+
+## New in ExcalidrawAutomate
+\`\`\`ts
+/**
+ * Parses text using the target view's ExcalidrawData parser.
+ *
+ * This reuses ExcalidrawData parsing logic directly, including transclusion
+ * resolution, link bracket rendering, and link/url prefixes based on the
+ * target file's frontmatter.
+ *
+ * @param {string} text - Raw text to parse.
+ * @returns {Promise<string | undefined>} Parsed text, or undefined when input/view is unavailable.
+ */
+public async parseText (text: string): Promise<string | undefined>;
+\`\`\`
+`,
+"2.20.6":`
+<div class="excalidraw-videoWrapper">
+<a href="https://www.youtube.com/watch?v=g-BiyQ7TJTM" target="_blank"><img src ="https://i.ytimg.com/vi/g-BiyQ7TJTM/maxresdefault.jpg" style="width:100%;"></a>
+</div>
+
+## New
+- Inline suggester now supports searching for tags in addition to files. Trigger with "#".
+- In Mindmap Builder
+  - Added Up-Facing, Down-Facing, and Up-Down maps
+  - Added submaps. You can now promote any node to be a new mindmap root (a sub-map). Sub-maps can have different layout settings such as different growth strategies, different colors, etc.
+  - Added experimental MindMap Builder API, accessible via \`window.MindMapBuilderAPI\`. See [MindMap Builder API documentation](https://github.com/zsviczian/obsidian-excalidraw-plugin/blob/master/docs/ea-script-docs/MindMapBuilderAPI.md) for more. Essentially, the API allows mindmaps to be created using the Obsidian CLI.
+
+## New from Excalidraw.com
+- Allow clicking on links and embeds with laser tool [#10797](https://github.com/excalidraw/excalidraw/pull/10797)
+- Improved paste text to diagram with more options and support for more data [#10824](https://github.com/excalidraw/excalidraw/pull/10824)
+
+try copy/pasting this into Excalidraw:
+\`\`\`
+skill, junior, medior, senior
+business_analysis, 2, 6, 9
+business_writing, 3, 7, 9
+stakeholder_mgmt, 1, 6, 10
+\`\`\`
+
+## New in ExcalidrawAutomate
+- Added \`skipScriptRestore(scriptName?: string): boolean\` function to the API. This allows scripts to queue a one-time skip marker so sidepanel persisted restoration will not re-run the script. Intended for startup race conditions where a script is started from the Command Palette/hotkey before the sidepanel has opened. If scriptName is omitted, the function uses ea.activeScript.
+
+## Fixed
+- Significant performance improvement of MindMap Builder and all other scripts modifying elements in large scenes containing thousands of elements.
+- Multiple arrow related updates and fixes from Excalidraw.com [#10832](https://github.com/excalidraw/excalidraw/pull/10832) [#10831](https://github.com/excalidraw/excalidraw/pull/10831) [#10816](https://github.com/excalidraw/excalidraw/pull/10816)
+- Hide MindMap Builder and other floating tools when creating a screenshot
+`,
+"2.20.5":`
+## Fixed
+- Obsidian Mobile: The floating navigation bar got stuck at the bottom after closing Excalidraw or switching to a markdown note. [#2673](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2673)
+- "Toggle UI Mode" now includes a preference setting for Obsidian Phone as well. You can now set different default layouts for phone, tablet, and desktop. [#2670](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2670)
+
+## New
+- Added "Toggle Full Screen" button to toolbar right next to the "Obsidian menu", and the "Insert Any File" button.
+`,
+"2.20.4":`
+## Fixed
+- Fix NativeSVG embed mode into Markdown documents, ahead of the Obsidian 1.12.1 release. [#2665](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2665)
+- Color picker once again supports 8-digit hex codes (Hex color string with an opacity). [#10772](https://github.com/excalidraw/excalidraw/issues/10772)
+- Fixed regression that removed LaTeX scaling. [#2668](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2668) 🙏[@TravisLEBLANC1](https://github.com/TravisLEBLANC1)
+- Corrected malformed frame embeds when using marker frames.
+- Context menu options **“Do not invert image(s) in dark mode”** and **“Invert image(s) in dark mode”** now properly cascade when drawings are nested as images inside other drawings.
+- Improved performance of the [MindMap Builder script](https://visual-thinking-workshop.com/mindmap).
+
+## New
+- [Deconstruct Selected Elements script](https://youtu.be/HRtaaD34Zzg) now includes a folder selection option, allowing you to choose the destination folder for the generated image.
+- Arrow binding midpoints. When the projected point is close to center, snap it to the exact center. This way it's easier to create neat(er) simple arrow connections. [#10611](https://github.com/excalidraw/excalidraw/pull/10611)
+
+`,
+"2.20.3":`
+## Fixed
+- Hover preview when hovering an element with a link in the scene was unreliable
+- If a text element had a link in the text body, in some situations, the link became unresponsive to clicks. [#2660](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2660)
+
+## New
+- Added default keymap to latex editor [#2655](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2655) 🙏[superle3](https://github.com/superle3)
+`,
+"2.20.2":`
+## New from Excalidraw.com
+- Arrow focus indicator [#10613](https://github.com/excalidraw/excalidraw/pull/10613)
+
+## Fixed
+- Experimental file type display now also works in Obsidian Mobile. (Reported on Discord)
+- Text to Mermaid stores chat history locally (i.e. not synchronized between devices).
+- Image positioning in crop editor [#2589](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2589), [#10726](https://github.com/excalidraw/excalidraw/pull/10726)
+
+## MindMap Builder
+- Implemented better undo support (effective only for the very last MindMap Builder action). Additionally, CMD/CTRL+Z and CTRL+Y, CMD+SHIFT+Z now work when the MindMap input window is focused.
+- Fixed: Double character input issue (IME Composition Error) when creating nodes [#2647](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2647)
+- Fixed: More robust error handling when the MindMap is corrupted or invalid.
+- Updated Excalidraw Writing Machine to support document generation from MindMaps. Writing Machine will honor the branch order. Requires update of the Writing Machine Script.
+
+## New in ExcalidrawAutomate
+- \`getBoundTextElement()\` now also accepts an \`ExcalidrawElement[]\` (2-element selection: container + text) in addition to a single element.
+- \`addElementsToView()\` extended with \`captureUpdate\` parameter (default: "IMMEDIATELY"). When set to false, the addition of elements will not be recorded in the view's history.
+
+\`\`\`ts
+  async addElementsToView(
+    repositionToCursor: boolean = false,
+    save: boolean = true,
+    newElementsOnTop: boolean = false,
+    shouldRestoreElements: boolean = false,
+    captureUpdate: CaptureUpdateActionType = CaptureUpdateAction.IMMEDIATELY,
+  ): Promise<boolean>
+\`\`\`
+`,
+"2.20.1":`
+## Fixed
+- Fixed Experimental file type display, available under miscellaneous settings. (Reported on Discord)
+- Fixed image inversion in dark mode on iOS devices. [#2636](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2636)
+- Fixed UI Mode switching on tablets was unreliable.
+
+## New/Fixed in MindMap Builder
+- **Connector Ontology**: Added support for labeling connection lines. A secondary input field (accessible via Shift+Tab) is now available in both docked and floating modes. Labels are preserved during copy/paste operations using inline Dataview syntax (e.g., link ontology:: node content).
+- **Connector Styling**: Introduced configuration settings for branch thickness and scaling strategies, allowing a choice between Hierarchical (tapering width by depth) or Uniform connector widths.
+- **Smart Resume**: The Focus and Zoom actions now target the most recently active node if no current selection is made. This automatically focuses the input field, allowing you to quickly resume mapping from where you left off.
+- **Radial Fill Sweep**: Added a "Fill Sweep Angle" option for Radial layouts. When enabled, nodes are distributed evenly across the full configured arc range, even when there are only a few nodes. (Visible only when Growth Strategy is set to "Radial").
+- **Radial Navigation**: Updated Level 1 node navigation in Radial maps to follow visual vertical alignment instead of rotational order. Up/Down keys now consistently move the selection visually up or down on both sides of the circle, matching the behavior of Right-Left layouts.
+- **Fixed**:
+  - Sidepanel opens on activation of MindMap Builder even in floating mode. Requires update of both Excalidraw and the MindMap Builder script.
+  - **Node Reordering**: Overhauled the logic for moving nodes via CMD/CTRL+Arrow to resolve unpredictability; nodes now move consistently to the intended locations.
+  - **iOS Navigation**: Resolved an issue where using the Tab key to cycle focus between components in the floating input window did not work reliably on iOS.
+  - **Boundary Layering**: Fixed an issue where sub-branch boundaries were placed above text elements when pasting a map; they now correctly render on the layer below the text.
+  - **Layout Stability**: Fixed an issue where the viewport would shift unexpectedly when pasting multiple elements onto an existing node in large scenes.
+
+> [!Tip]- Learn MindMap Builder
+> Learn it fast with the low-cost [MindMap Builder course](https://visual-thinking-workshop.com/mindmap). Register before **31 Jan** to join a live Q&A:
+> - Sat Jan 31 @ 18:00 CET ([local time](https://www.timeanddate.com/worldclock/fixedtime.html?msg=MindMap+Builder+Launch+Party&iso=20260131T17&p1=%3A&ah=1))
+> - Sun Feb 1 @ 09:00 CET ([local time](https://www.timeanddate.com/worldclock/fixedtime.html?msg=MindMap+Builder+Launch+Party&iso=20260201T08&p1=%3A&ah=1))
+
+`,
+"2.20.0":`
+<div class="excalidraw-videoWrapper">
+<a href="https://www.youtube.com/watch?v=5G9QF-u9w0Q" target="_blank"><img src ="https://i.ytimg.com/vi/5G9QF-u9w0Q/maxresdefault.jpg" style="width:100%;"></a>
+</div>
+
+> [!Tip]- Learn MindMap Builder
+> Learn it fast with the low-cost [MindMap Builder course](https://visual-thinking-workshop.com/mindmap). Register before **31 Jan** to join a live Q&A:
+> - Sat Jan 31 @ 18:00 CET ([local time](https://www.timeanddate.com/worldclock/fixedtime.html?msg=MindMap+Builder+Launch+Party&iso=20260131T17&p1=%3A&ah=1))
+> - Sun Feb 1 @ 09:00 CET ([local time](https://www.timeanddate.com/worldclock/fixedtime.html?msg=MindMap+Builder+Launch+Party&iso=20260201T08&p1=%3A&ah=1))
+
+## Scripts
+- Moved [Shade Master](https://youtu.be/ISuORbVKyhQ) to use the new Excalidraw Sidepanel API (just like MindMap Builder).
+
+## New
+- Dark theme from Excalidraw.com [#10578](https://github.com/excalidraw/excalidraw/pull/10578) (including correct emoji rendering in dark mode 😍).
+- New image context-menu option (right-click an image) to control whether that image inverts in dark mode
+  - Default behavior: SVG-based images (including LaTeX, Mermaid, and nested Excalidraw images) invert in dark mode; bitmap images (PNG/JPG) do not.
+- New from Excalidraw.com: chat-style interface for Mermaid TextToDiagrams (requires an OpenAI API key configured in Excalidraw plugin settings). [#10530](https://github.com/excalidraw/excalidraw/pull/10530)
+  - Breaking change: the legacy “force SVG” option for Mermaid diagrams is no longer supported. If a diagram can be rendered as Excalidraw, it will be; otherwise, an SVG will be used.
+- Moved the Shade Master script to use the new Sidepanel (just like MindMap Builder).
+
+## Fixed
+- In full-screen mode on phones, a large area at the top of the screen was left unused. Also fixed an issue where the Obsidian Mobile navigation bar could overlap the Excalidraw toolbar.
+- The link indicator in the top-right corner would remain visible even when an element was set to transparent [#2625](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2625)
+- Importing PDFs with mixed page sizes could produce distorted pages [#2578](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2578)
+- Some PDFs failed to load when importing PDFs as images (notably documents using JPEG2000-compressed images). Also improved handling of certain color profiles and cases where text rendered with missing/incorrect glyphs.
+- A long-standing export issue: when exporting in a theme different from the current view (e.g., viewing in dark mode but exporting in light mode), nested Excalidraw images containing bitmap images could export with inverted colors.
+`,
+"2.19.2":`
+## Fixed
+- Minor fixes to the link autocomplete functionality:
+  - Link suggester "eats up text" [#2603](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2603)
+  - "!" triggers the link suggester prematurely
+  - "\[\[" will now be auto-completed to "\[\[]]". Note, this is not available in MindMap Builder currently.
+
+## New
+- When a persistent Excalidraw script is updated via the script store, it will now automatically reload so the new script takes effect immediately.
+
+`,
+"2.19.1":`
+## Fixed
+- Excalidraw pointer offset issue on Obsidian Mobile 1.11.4 [#2607](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2607)
+
+## New
+- Inline autocomplete link suggester now supports Heading sections and block references.
+- Escaped "\\\\["  will now be rendered as "[" in text elements.
+- Scaling the LaTeX element when the formula is updated. [#2604](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2604) 🙏[@TravisLEBLANC1](https://github.com/TravisLEBLANC1)
+
+## New in ExcalidrawAutomate
+- Added PDF++ image link support to the \`addImage()\` function.
+
+`,
+"2.19.0":`
+<div class="excalidraw-videoWrapper">
+<a href="https://www.youtube.com/watch?v=qY66yoobaX4" target="_blank"><img src ="https://i.ytimg.com/vi/qY66yoobaX4/maxresdefault.jpg" style="width:100%;"></a>
+</div>
+
+## New
+- 🚀🎉🍾 Added **inline link autocomplete** to text element editing and element link editing. Simply start typing "[[" as you would in a normal markdown document.
+  - ‼️ removed add link button element-link editor on desktop
+  - ‼️ removed add link from context menu on desktop
+  - ‼️ added new setting under "Links, transclusion and TODOs" **Sync text-element link with text**
+    - The default behavior is OFF, because it feels more natural to manage the element link separately.
+    - When enabled (ON), Excalidraw matches pre-2.19.0 behavior: the first link in the text body is always copied to the element link field. SVG/PNG exports only keep links when the element link field holds a single link (not links inside the text body). Turn this ON if you rely on text-body links and want the element link to always mirror the first one. Turn it OFF if you manage the element link separately: for metadata like tags, inline link ontologies, or multiple links, e.g., dataview-style notes like '(reminds me of:: [[link]]) #noteToSelf'.
+- LaTeX formula is saved to \`element.customData.latex\`. This can be helpful for various automation use cases.
+- Implemented Color Picker in Custom Pen Settings to pick from the current view's color palette.
+- Updated the **Scribble Helper** script with the new Color Picker to select the text color.
+- Updated the **Shade Maser** script with the new Color Picker to select the shading color.
+- **Mindmap Builder**
+  - Uses new sidepanel, persistent across different drawings and autostarts with Obsidian.
+  - You can now configure hotkeys
+  - Allows editing node text in place
+  - You can define your own color palette for branches
+  - Improved auto-layout algorithm to work better with larger subtrees
+  - Includes inline link suggester
+  - Image and Embeddable nodes
+
+## Fixed
+- Floating modal used by Excalidraw scripts did not work correctly in Obisidian popout windows.
+- In onPaste if \`imageElement.customData.latex\` is present, it will treat the pasted images as a LaTeX formula, even if copied from Excalidraw.com or another Obsidian Vault.
+
+## New & fixed in ExcalidrawAutomate
+- \`ea.toClipboard()\` will now include the DataURL for included images from \`ea.imagesDict\`
+- Implemented Excalidraw Sidepanel API for ExcalidrawAutomate. Scripts can now create custom Obsidian sidepanel tabs in the Excalidraw Sidepanel.
+  - New Command Palette action: "Open Excalidraw Sidepanel" will toggle the sidepanel visibility.
+  - The demo script making full use of the new sidepanel API is [Mindmap Builder](https://github.com/zsviczian/obsidian-excalidraw-plugin/blob/master/ea-scripts/Mindmap%20Builder.md).
+  - [ExcalidrawAutomate full library for LLM training.md](https://raw.githubusercontent.com/zsviczian/obsidian-excalidraw-plugin/refs/heads/master/docs/AITrainingData/ExcalidrawAutomate%20full%20library%20for%20LLM%20training.md) includes all necessary training information to use sidepanels.
+- Added palette popover helper \`showColorPicker()\` (also used in Pen Settings and Mindmap Builder) to pick from the current view's canvas/element palettes.
+- Added inline link suggester helper \`attachInlineLinkSuggester()\` returning a KeyBlocker interface so host scripts can suppress their own keydown handlers while the suggester is active.
+
+New functions in ExcalidrawAutomate. See also [SidepanelTab](https://github.com/zsviczian/obsidian-excalidraw-plugin/blob/master/src/types/sidepanelTabTypes.ts) type definition.
+
+\`\`\`ts
+sidepanelTab: ExcalidrawSidepanelTab | null;
+checkForActiveSidepanelTabForScript(scriptName?: string): ExcalidrawSidepanelTab | null;
+createSidepanelTab(title: string, persist?: boolean, reveal?: boolean): Promise<ExcalidrawSidepanelTab | null>;
+getSidepanelLeaf(): WorkspaceLeaf | null;
+toggleSidepanelView(): void;
+persistSidepanelTab(): ExcalidrawSidepanelTab | null;
+attachInlineLinkSuggester(inputEl: HTMLInputElement, widthWrapper?: HTMLElement): KeyBlocker;
+getViewColorPalette(palette: "canvasBackground"|"elementBackground"|"elementStroke"): (string[] | string)[];
+showColorPicker(anchorElement: HTMLElement, palette: "canvasBackground"|"elementBackground"|"elementStroke", includeSceneColors: boolean = true): Promise<string | null>;
+\`\`\`
+
+- **setView() improvements**
+  - Calling \`setView()\` now picks a sensible target automatically:
+    - It prefers the **currently active Excalidraw view**.
+    - If no active Excalidraw view is found (e.g., the user is focused on a different tab like the File Explorer/sidebar), it will fall back to the **last active Excalidraw view (as long as it is still available)** — typically the drawing the user came from.
+  - **New selector**: \`"auto"\` (equivalent to calling \`setView()\`).
+    - Useful when you also want to reveal/focus the view: \`setView("auto", true)\`.
+  - **Deprecated selectors**: \`"active"\` and \`"first"\` are deprecated and kept only for backward compatibility.
+    - Recommended usage is either \`setView()\`, \`setView("auto")\`, or \`setView(excalidrawView)\` (explicitly target a specific view).
+
+\`\`\`ts
+setView(view?: ExcalidrawView | "auto" | "first" | "active" | null, show: boolean = false)
+\`\`\`
+`,
+"2.18.3":`
+<div class="excalidraw-videoWrapper">
+<a href="https://www.youtube.com/watch?v=dZguonMP2KU" target="_blank"><img src ="https://i.ytimg.com/vi/dZguonMP2KU/maxresdefault.jpg" style="width:100%;"></a>
+</div>
+
+## New
+- Added Mindmap Builder script to the store.
+- LaTeX Suit Integration by [@TravisLEBLANC1](https://github.com/TravisLEBLANC1)
+- Added Linear Calendar Generator script to the store. 🙏 [@iwanhoogendoorn](https://github.com/iwanhoogendoorn)
+
+## Fixed
+- YouTube video embeds working on iOS  [#2569](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2569)
+- Stroke color setting for Embeddedables (markdown notes, websites) is missing after 2.17.0 update [#2580](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2580)
+- Context menu paste pastes in image twice [#10542](https://github.com/excalidraw/excalidraw/issues/10542)
+
+## New in ExcalidrawAutomate
+- Added 3 new helper functions for working with Script Engine settings (safe during initialization when \`scriptEngineSettings[activeScript]\` is \`undefined\` / \`null\`):
+  - \`setScriptSettingValue(key: string, value: ScriptSettingValue): void\`
+  - \`getScriptSettingValue(key: string, defaultValue: ScriptSettingValue): ScriptSettingValue\`
+  - \`saveScriptSettings(): Promise<void>\`
+
+- Updated \`addArrow()\` to support the new Excalidraw binding options:
+  - \`startBindMode?: "inside" | "orbit"\`
+  - \`endBindMode?: "inside" | "orbit"\`
+  - \`startFixedPoint?: [number, number]\`
+  - \`endFixedPoint?: [number, number]\`
+  - \`elbowed?: boolean\`
+
+\`\`\`ts
+  /**
+   * Returns an object describing the bound text element.
+   * If a text element is provided:
+   *  - returns { eaElement } if the element is in ea.elementsDict
+   *  - else (if searchInView is true) returns { sceneElement } if found in the targetView scene
+   * If a container element is provided, searches for the bound text element:
+   *  - returns { eaElement } if found in ea.elementsDict
+   *  - else (if searchInView is true) returns { sceneElement } if found in the targetView scene
+   * If not found, returns {}.
+   * Does not add the text element to elementsDict.
+   * @param element 
+   * @param searchInView - If true, searches in the targetView elements if not found in elementsDict.
+   * @returns Object containing either eaElement or sceneElement or empty if not found.
+   */
+  getBoundTextElement(element: ExcalidrawElement, searchInView: boolean = false): {
+    eaElement?: Mutable<ExcalidrawTextElement>,
+    sceneElement?: ExcalidrawTextElement
+    };
+\`\`\`
+`,
+"2.18.2":`
+## Fixed
+- Stroke palette menu for embedded notes is gone after 2.17 update [#2580](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2580)
+- Cannot link to group [#2579](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2579)
+
+`,
 "2.18.1":`
 ## New
 - Improved the **Copy [[link]] for selected elements** context-menu action:
@@ -216,55 +552,5 @@ public getViewCenterPosition(): {x:number, y:number};
     }
   ):ExcalidrawElement[] 
 \`\`\`
-`,
-"2.14.3":`
-<div class="excalidraw-videoWrapper">
-<a href="https://www.youtube.com/watch?v=29EWeglRm7s" target="_blank"><img src ="https://i.ytimg.com/vi/29EWeglRm7s/maxresdefault.jpg" style="width:100%;"></a>
-</div>
-
-Updated the Printable Layout Wizard script with the option to exclude empty pages.
-
-## Fixed
-- If a frame is locked, elements created over the frame or dragged over the frame should not be auto-added to the frame. [#9850](https://github.com/excalidraw/excalidraw/issues/9850)
-
-## Fixed in ExcalidrawAutomate
-- Not all AppState properties were being correctly copied to the template when creating a new drawing with ea.create() [#2440](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2440)
-`,
-"2.14.2":`
-## Fixed
-- Converting Markdown to Excalidraw ("Back of note"/"Convert markdown to ExcaliDrawing") no longer appends T00:00:00.000Z to an existing date frontmatter field and handles merging of lists such as tags intelligently [#2414](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2414)
-- Multi‑point line creation on touchscreens (tap–tap–tap) produced a horizontal line after using a pen. Fixed. [#9840](https://github.com/excalidraw/excalidraw/pull/9840#issuecomment-3165319266)
-
-## New
-- Zoom settings (Settings → Excalidraw → Appearance and Behavior → Zoom) [#2434](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2434):
-  - Zoom increment (default 5%) to fine‑tune mouse wheel / gesture precision.
-  - Minimum zoom (default 10%) controls how far you can zoom out (below 10% may be unstable—use with caution).
-  - Maximum zoom (default 3000%) defines the upper zoom limit.
-- Palm Guard script (in script store): Mobile-friendly drawing mode for stylus users. Enters fullscreen, hides UI, shows a draggable minimal toolbar (toggle + exit) to prevent accidental palm taps; single tap to exit. Inspired by [#2409](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2409)
-
-<div class="excalidraw-videoWrapper">
-<a href="https://www.youtube.com/watch?v=A_udjVjgWN0" target="_blank"><img src ="https://i.ytimg.com/vi/A_udjVjgWN0/maxresdefault.jpg" style="width:100%;"></a>
-</div>
-
-## ExcalidrawAutomate
-- Improved \`FloatingModal\` behavior. Floating Modal now does not trap keyboard events, the header element does not block "X" button in the top right corner, all four corners are rounded on Mobile Devices.
-
-`,
-"2.14.1":`
-## Fixed
-- Excalidraw broke Obsidian's UI in Arabic, Persian, and Hebrew due to LTR, RTL conflict. [#2423](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2423) 
-- Styling issues impacting native Obsidian search/replace dialogs. [#2420](https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/2420)
-- Now using native Obsidian attachment location function. 🙏 [mnaoumov](https://github.com/mnaoumov) [#2421](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2421), potentially fixes [#179](https://github.com/RainCat1998/obsidian-custom-attachment-location/issues/179) of the Obsidian Custom Attachment Location plugin issue.
-
-## New
-- New frontmatter option \`excalidraw-embed-md\`. When set to \`true\`, embedding the drawing into a markdown note will render the "back of the note" (its markdown content) instead of rendering it as an image.
-  - If you want to always display the drawing as an image, even when \`excalidraw-embed-md\` is enabled, use the special embed syntax: \`![[drawing#^as-image]]\`. Here, \`as-image\` is a phantom block reference that forces image rendering.
-- Added Spanish translation by [@Joakim31](https://github.com/Joakim31) [#2425](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2425)
-- Incremental minor updates from the main [Excalidraw project](https://github.com/excalidraw/excalidraw).
-`,
-"2.14.0":`
-## A Big "Small" Update
-- Added search to Excalidraw Settings, plus added a link to access the public NotebookLM workbook pre-loaded with everything about the plugin
-- New Taiwan-idiomatic Traditional Chinese translation by [@rlan](https://github.com/rlan) [#2413](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2413)
 `,
 };

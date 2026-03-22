@@ -1,12 +1,13 @@
 
-import { MAX_IMAGE_SIZE, IMAGE_TYPES, ANIMATED_IMAGE_TYPES, MD_EX_SECTIONS, AUDIO_TYPES, CARD_WIDTH, CARD_HEIGHT } from "src/constants/constants";
+import { MAX_IMAGE_SIZE, IMAGE_TYPES, ANIMATED_IMAGE_TYPES, MD_EX_SECTIONS, AUDIO_TYPES, CARD_WIDTH, CARD_HEIGHT, getDefaultColorPalette, DEVICE } from "src/constants/constants";
 import { App, Modal, Notice, TFile } from "obsidian";
 import { ExcalidrawAutomate } from "src/shared/ExcalidrawAutomate";
 import { REGEX_LINK, REG_LINKINDEX_HYPERLINK, getExcalidrawMarkdownHeaderSection, REGEX_TAGS, getExcalidrawMarkdownHeader } from "../shared/ExcalidrawData";
 import ExcalidrawView from "src/view/ExcalidrawView";
 import { ExcalidrawElement, ExcalidrawFrameElement, ExcalidrawImageElement } from "@zsviczian/excalidraw/types/element/src/types";
 import { getEmbeddedFilenameParts, getLinkParts, isImagePartRef } from "./utils";
-import { cleanSectionHeading, getAudioElementHeight } from "./obsidianUtils";
+import { getAudioElementHeight } from "./obsidianUtils";
+import { cleanSectionHeading } from "./pathUtils";
 import { getEA } from "src/core";
 import { AppState, ExcalidrawImperativeAPI } from "@zsviczian/excalidraw/types/excalidraw/types";
 import { EmbeddableMDCustomProps } from "src/shared/Dialogs/EmbeddableSettings";
@@ -323,34 +324,29 @@ export async function addBackOfTheNoteCard(
 export function renderContextMenuAction(
   React: any,
   label: string,
-  action: Function,
+  action: () => void,
   onClose: (callback?: () => void) => void,
+  actionId?: string,
+  checked: boolean = false,
 ) {
-  return React.createElement (
+  return React.createElement(
     "li",          
     {
       key: nanoid(),
-      onClick: () => {
-        onClose(()=>action())
-      },
+      onClick: () => onClose(action),
+      "data-testid": actionId
     },
     React.createElement(
       "button",
-      {              
-        className: "context-menu-item",
-      },
+      { className: checked ? "context-menu-item checkmark" : "context-menu-item" },
       React.createElement(
         "div",
-        {
-          className: "context-menu-item__label",
-        },
+        { className: "context-menu-item__label" },
         label,
       ),
       React.createElement(
         "kbd",
-        {
-          className: "context-menu-item__shortcut",
-        },
+        { className: "context-menu-item__shortcut" },
         "", //this is where the shortcut may go in the future
       ),
     )
@@ -528,4 +524,114 @@ export function onLoadMessages(plugin: ExcalidrawPlugin, scene: {elements: Excal
       new Notice(t("DRAWING_HAS_BACK_OF_THE_CARD")); 
     }*/
   });
+}
+
+export function getViewColorPalette(
+  palette: "canvasBackground"|"elementBackground"|"elementStroke",
+  view?: ExcalidrawView,
+  includeSceneColors: boolean = false,
+): (string[] | string)[] {
+  if (!view) {
+    return getDefaultColorPalette() as (string[] | string)[];
+  }
+
+  const api = view.excalidrawAPI as ExcalidrawImperativeAPI;
+  const {colorPalette} = api.getAppState();
+  if (!colorPalette || !colorPalette.hasOwnProperty(palette)) {
+    return getDefaultColorPalette() as (string[] | string)[];
+  }
+
+  const basePalette = colorPalette[palette];
+
+  if (!Array.isArray(basePalette)) {
+    return [basePalette];
+  }
+
+  const cmFactory = view.hookServer?.getCM?.bind(view.hookServer) ?? view.plugin.ea.getCM.bind(view.plugin.ea);
+  const getLightness = (color: string): number => {
+    const cm = cmFactory?.(color);
+    const value = (cm as any)?.lightness;
+    return typeof value === "number" ? value : Number.POSITIVE_INFINITY;
+  };
+  const normalize = (color: string): string => {
+    if (!color) {return color;}
+    if (color.toLowerCase() === "transparent") {return "transparent";}
+    const cm = cmFactory?.(color);
+    if (cm && typeof (cm as any).stringHEX === "function") {
+      try {
+        const alpha = (cm as any).alpha;
+        const includeAlpha = typeof alpha === "number" ? alpha !== 1 : true;
+        return (cm as any).stringHEX({alpha: includeAlpha}).toLowerCase();
+      } catch {
+        // fall through to string coercion
+      }
+    }
+    if (cm && typeof (cm as any).toString === "function") {
+      return (cm as any).toString().toLowerCase();
+    }
+    return color.toLowerCase();
+  };
+
+  const groups = basePalette
+    .filter((entry) => Array.isArray(entry))
+    .map((entry) => (entry as string[]).slice().sort((a, b) => getLightness(b) - getLightness(a)));
+  const singles = basePalette.filter((entry) => typeof entry === "string") as string[];
+  const groupColors = groups
+    .flatMap((entry) => entry as string[])
+    .filter(Boolean)
+    .map((c) => normalize(c));
+  const groupColorSet = new Set(groupColors);
+
+  const seenSingles = new Set<string>();
+  const filteredSingles = singles.filter((entry) => {
+    const norm = normalize(entry);
+    if (!norm) {return false;}
+    if (groupColorSet.has(norm)) {return false;}
+    if (seenSingles.has(norm)) {return false;}
+    seenSingles.add(norm);
+    return true;
+  });
+
+  if (!includeSceneColors || !["elementBackground", "elementStroke"].includes(palette)) {
+    return [...groups, ...filteredSingles];
+  }
+
+  const flattenPalette = (pal: any[]): string[] => pal
+    .flatMap((entry: any) => Array.isArray(entry) ? entry : [entry])
+    .filter((color: any): color is string => typeof color === "string" && Boolean(color));
+
+  const paletteColors = flattenPalette(basePalette).map((c) => normalize(c));
+  const extraColors = new Set<string>(filteredSingles.filter((c) => c.toLowerCase() !== "transparent"));
+
+  view.getViewElements().forEach((el) => {
+    const color = (palette === "elementStroke" ? el.strokeColor : (el as any).backgroundColor) as string;
+    if (!color || normalize(color) === "transparent") {return;}
+    if (paletteColors.includes(normalize(color))) {return;}
+    extraColors.add(color);
+  });
+
+  if (!extraColors.size) {
+    return [...groups];
+  }
+
+  const sortedExtras = cmFactory
+    ? Array.from(extraColors).sort((a, b) => getLightness(b) - getLightness(a))
+    : Array.from(extraColors);
+
+  return [...groups, ...sortedExtras];
+}
+
+//!Temporary hack
+//https://discord.com/channels/686053708261228577/817515900349448202/1031101635784613968
+export const setMobileNavbarPosition = (dock:boolean) => {
+  if (DEVICE.isMobile) {
+    const navbar = document.querySelector("body>.app-container>.mobile-navbar");
+    if(navbar && navbar instanceof HTMLDivElement) {
+      if (dock) {
+        navbar.addClass("excalidraw-mobile-navbar-docked");
+      } else {
+        navbar.removeClass("excalidraw-mobile-navbar-docked");
+      }
+    }
+  }
 }

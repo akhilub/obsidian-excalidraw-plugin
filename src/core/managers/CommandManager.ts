@@ -18,7 +18,8 @@ import {
   sceneCoordsToViewportCoords,
   fileid,
 } from "../../constants/constants";
-import ExcalidrawView, { TextMode } from "../../view/ExcalidrawView";
+import ExcalidrawView from "../../view/ExcalidrawView";
+import { TextMode } from "../../shared/TextMode";
 import {
   REGEX_LINK,
 } from "../../shared/ExcalidrawData";
@@ -51,7 +52,8 @@ import {
   decompress,
   getImageSize,
 } from "../../utils/utils";
-import { extractSVGPNGFileName, getActivePDFPageNumberFromPDFView, getAttachmentsFolderAndFilePath, isObsidianThemeDark, mergeMarkdownFiles, setExcalidrawView } from "../../utils/obsidianUtils";
+import { extractSVGPNGFileName, getActivePDFPageNumberFromPDFView, isObsidianThemeDark, mergeMarkdownFiles, setExcalidrawView } from "../../utils/obsidianUtils";
+import { getAttachmentsFolderAndFilePath } from "../../utils/pathUtils";
 import { ExcalidrawElement, ExcalidrawEmbeddableElement, ExcalidrawImageElement, ExcalidrawTextElement, FileId } from "@zsviczian/excalidraw/types/element/src/types";
 import { ReleaseNotes } from "../../shared/Dialogs/ReleaseNotes";
 import { ScriptInstallPrompt } from "../../shared/Dialogs/ScriptInstallPrompt";
@@ -398,6 +400,14 @@ export class CommandManager {
       id: "excalidraw-download-lib",
       name: t("DOWNLOAD_LIBRARY"),
       callback: ()=>this.plugin.exportLibrary(),
+    });
+
+    this.addCommand({
+      id: "excalidraw-open-sidepanel",
+      name: t("OPEN_SIDEPANEL"),
+      callback: () => {
+        void this.plugin.openSidepanel();
+      },
     });
 
     this.addCommand({
@@ -992,7 +1002,7 @@ export class CommandManager {
           if(this.app.workspace.getActiveViewOfType(ExcalidrawView)) {
             const view = this.app.workspace.getActiveViewOfType(ExcalidrawView);
             const api = view?.excalidrawAPI as ExcalidrawImperativeAPI;
-            if(!api.isTrayModeEnabled()) return false;
+            if(!api || !api.isTrayModeEnabled()) return false;
             return true;
           }
           return false;
@@ -1017,12 +1027,7 @@ export class CommandManager {
       name: t("TOGGLE_ENABLE_CONTEXT_MENU"),
       checkCallback: (checking: boolean) => {
         if (checking) {
-          if(this.app.workspace.getActiveViewOfType(ExcalidrawView)) {
-            const view = this.app.workspace.getActiveViewOfType(ExcalidrawView);
-            const api = view?.excalidrawAPI as ExcalidrawImperativeAPI;
-            return true;
-          }
-          return false;
+          return Boolean(this.app.workspace.getActiveViewOfType(ExcalidrawView));
         }
         const view = this.app.workspace.getActiveViewOfType(ExcalidrawView);
         view.toggleEnableContextMenu();
@@ -1034,7 +1039,7 @@ export class CommandManager {
       id: "flip-image",
       name: t("FLIP_IMAGE"),
       checkCallback: (checking:boolean) => {
-        if (!DEVICE.isDesktop) return;
+        if (!DEVICE.isDesktop) return false;
         const view = this.app.workspace.getActiveViewOfType(ExcalidrawView);
         if(!view) return false;
         if(!view.excalidrawAPI) return false;
@@ -1093,8 +1098,10 @@ export class CommandManager {
         if(checking) return true;
         (async()=>{
           const ea = getEA(view) as ExcalidrawAutomate;
-          const isAnchored = Boolean(el.customData?.isAnchored); 
-          const imgId = await ea.addImage(el.x+el.width/5, el.y+el.height/5, ef.file,!isAnchored, isAnchored);
+          const isAnchored = Boolean(el.customData?.isAnchored);
+          const imgId = ef.pdfPageViewProps
+            ? await ea.addImage(el.x+el.width/5, el.y+el.height/5, el.link?.match(/\[\[([^\]]+)]]/)?.[1] ?? ef.linkParts.original,!isAnchored, isAnchored)
+            : await ea.addImage(el.x+el.width/5, el.y+el.height/5, ef.file,!isAnchored, isAnchored);
           const img = ea.getElement(imgId) as Mutable<ExcalidrawImageElement>;
           img.width = el.width;
           img.height = el.height;

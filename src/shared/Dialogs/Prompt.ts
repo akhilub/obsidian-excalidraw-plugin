@@ -7,7 +7,7 @@ import {
   Instruction,
   TFile,
   Notice,
-  TextAreaComponent,
+  TextAreaComponent
 } from "obsidian";
 import ExcalidrawView from "../../view/ExcalidrawView";
 import ExcalidrawPlugin from "../../core/main";
@@ -23,6 +23,13 @@ import { REGEX_LINK, REGEX_TAGS } from "../ExcalidrawData";
 import { ScriptEngine } from "../Scripts";
 import { openExternalLink, openTagSearch, parseObsidianLink } from "src/utils/excalidrawViewUtils";
 import { ButtonDefinition } from "src/types/promptTypes";
+import { EditorView, keymap } from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { parser } from "./math-only";
+import { LRLanguage } from "@codemirror/language";
+import { editorLivePreviewField } from "obsidian";
+import { Extension } from "@codemirror/state";
+import { FloatingModal } from "./FloatingModal";
 
 export class Prompt extends Modal {
   private promptEl: HTMLInputElement;
@@ -76,6 +83,154 @@ export class Prompt extends Modal {
   async openAndGetValue(resolve: (value: string) => void): Promise<void> {
     this.resolve = resolve;
     this.open();
+  }
+}
+
+export class LaTexPrompt extends FloatingModal {
+  public waitForClose : Promise<string>;
+  private promptEl: HTMLInputElement;
+  private resolvePromise: (input: string) => void;
+  private rejectPromise: (reason?: any) => void;
+  private editorView : EditorView;
+  private readonly latexsSuitePlugin : any;
+
+  protected constructor(
+    app: App,
+    private prompt_text: string,
+    private default_value?: string,
+  ) {
+    super(app);
+    this.titleEl.setText(this.prompt_text);
+    this.contentEl.addClass("excalidraw-LatexPrompt");
+    this.latexsSuitePlugin = app.plugins.plugins["obsidian-latex-suite"];
+    super.enableKeyCapture(); // otherwise latex-suite (or Ctrl-Enter) do not get the key event
+    const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
+    this.display(default_value, mainContentContainer);
+    this.waitForClose = new Promise<string>((resolve, reject) => {
+      this.resolvePromise = resolve;
+      this.rejectPromise = reject;
+    });
+    this.editorView.focus();
+  }
+
+  protected shouldNotStartDrag(target: HTMLElement, event: PointerEvent | TouchEvent): boolean {
+    return target.closest(".cm-editor") != null || super.shouldNotStartDrag(target, event);
+  }
+
+  public static Prompt(app: App,
+    prompt_text?: string,
+    default_value?: string,
+  ): Promise<string>{
+    const latexprompt = new this(app, prompt_text, default_value);
+
+    return latexprompt.waitForClose;
+  }
+
+  private display(value : string, container : HTMLDivElement) {
+
+    const minimalSetup = [
+      history(),
+      keymap.of([
+        ...defaultKeymap,
+        ...historyKeymap,
+      ])
+    ]
+    const extensions: Extension[] = [
+      // overriding default "Mod-Enter" from defaultKeymap (so first in array)
+      keymap.of([{
+        key:"Mod-Enter", 
+        run : () => {this.submitCallback(); return true;}
+      }]),
+      // obsidian class to inherit styling
+      EditorView.editorAttributes.of({class: "multi-select-container"}),
+      minimalSetup
+    ]
+    if (this.latexsSuitePlugin) {
+      // the language put eveything in a "math" node
+      // surrounded by "math-begin" and "math-end" 
+      // so that latex-suite always thinks we are in mathmode
+      const language = LRLanguage.define({parser:parser});
+      extensions.push([
+        language, 
+        editorLivePreviewField.init(() => false),
+        this.latexsSuitePlugin.editorExtensions
+      ]);
+    }
+
+    this.editorView = new EditorView({ 
+      doc: value, 
+      extensions : extensions,
+      parent : container,
+    });
+
+    const buttonBarContainer: HTMLDivElement = container.createDiv();
+    buttonBarContainer.addClass(`excalidraw-prompt-buttonbar-bottom`);
+    const actionButtonContainer: HTMLDivElement = buttonBarContainer.createDiv();
+
+    this.createButton(
+        actionButtonContainer,
+        "",
+        this.submitCallback.bind(this),
+        t("PROMPT_BUTTON_OK") ?? "",
+        undefined,
+        "check"
+      ).setCta().buttonEl.style.marginRight = "0";
+    this.createButton(
+        actionButtonContainer, 
+        "", 
+        this.cancelCallback.bind(this), 
+        t("PROMPT_BUTTON_CANCEL"),
+        undefined,
+        "x"
+      );
+    this.open();
+  }
+
+  private createButton(container: HTMLElement,
+    text: string,
+    callback: (evt: MouseEvent) => any,
+    tooltip: string = "",
+    margin: string = "5px",
+    iconId?:string,
+  ){
+    const btn = new ButtonComponent(container);
+    btn.buttonEl.style.padding = "0.5em";
+    btn.buttonEl.style.marginLeft = margin;
+    btn.setTooltip(tooltip);
+
+    if (iconId) {
+      btn.setIcon(iconId);
+    } else {
+      btn.setButtonText(text);
+    }
+
+    btn.onClick(callback);
+    return btn;
+  }
+  
+  private submitCallback(){
+    const res = this.editorView.state.doc.toString();
+    if (res.trim().length == 0) {
+      this.rejectPromise("empty latex");
+    } else { 
+      this.resolvePromise(res);
+    }
+    this.close();
+  }
+
+  private cancelCallback(){
+    this.rejectPromise("Canceled input");
+    this.close();
+  }
+
+  onOpen(): void {
+    super.onOpen();
+    this.editorView.focus();
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+    this.editorView.destroy();
   }
 }
 
@@ -161,7 +316,7 @@ export class GenericInputPrompt extends Modal {
     private header: string,
     placeholder?: string,
     value?: string,
-    buttons?: { caption: string; action: Function }[],
+    buttons?: ButtonDefinition[],
     lines?: number,
     displayEditorButtons?: boolean,
     customComponents?: (container: HTMLElement) => void,
@@ -265,12 +420,20 @@ export class GenericInputPrompt extends Modal {
     callback: (evt: MouseEvent) => any,
     tooltip: string = "",
     margin: string = "5px",
+    iconId?:string,
   ) {
     const btn = new ButtonComponent(container);
     btn.buttonEl.style.padding = "0.5em";
     btn.buttonEl.style.marginLeft = margin;
     btn.setTooltip(tooltip);
-    btn.setButtonText(text).onClick(callback);
+
+    if (iconId) {
+      btn.setIcon(iconId);
+    } else {
+      btn.setButtonText(text);
+    }
+
+    btn.onClick(callback);
     return btn;
   }
 
@@ -286,13 +449,17 @@ export class GenericInputPrompt extends Modal {
         const btn = new ButtonComponent(actionButtonContainer);
         btn.buttonEl.style.marginLeft="5px";
         if(button.tooltip) btn.setTooltip(button.tooltip);
-        btn.setButtonText(button.caption).onClick((evt: MouseEvent) => {
-          const res = button.action(this.input);
-          if (res) {
-            this.input = res;
-          }
-          this.submit();
-        });
+        button.iconId
+          ? btn.setIcon(button.iconId)
+          : btn.setButtonText(button.caption);
+        button.tooltip && btn.setTooltip(button.tooltip);
+        btn.onClick((evt: MouseEvent) => {
+            const res = button.action(this.input);
+            if (res) {
+              this.input = res;
+            }
+            this.submit();
+          });
         b = b ?? btn;
       }
       if (b) {
@@ -302,20 +469,32 @@ export class GenericInputPrompt extends Modal {
     } else {
       this.createButton(
         actionButtonContainer,
-        "✅",
+        "",
         this.submitClickCallback.bind(this),
+        t("PROMPT_BUTTON_OK") ?? "",
+        "5px",
+        "check",
       ).setCta().buttonEl.style.marginRight = "0";
     }
-    this.createButton(actionButtonContainer, "❌", this.cancelClickCallback.bind(this), t("PROMPT_BUTTON_CANCEL"));
+    
+    this.createButton(
+      actionButtonContainer,
+      "",
+      this.cancelClickCallback.bind(this),
+      t("PROMPT_BUTTON_CANCEL"),
+      "5px",
+      "x",
+    );
+  
     if(this.displayEditorButtons) {
-      this.createButton(editorButtonContainer, "⏎", ()=>this.insertStringBtnClickCallback("\n"), t("PROMPT_BUTTON_INSERT_LINE"), "0");
-      this.createButton(editorButtonContainer, "⌫", this.delBtnClickCallback.bind(this), "Delete");
-      this.createButton(editorButtonContainer, "⎵", ()=>this.insertStringBtnClickCallback(" "), t("PROMPT_BUTTON_INSERT_SPACE"));
-      this.createButton(editorButtonContainer, "§", this.specialCharsBtnClickCallback.bind(this), t("PROMPT_BUTTON_SPECIAL_CHARS"));
+      this.createButton(editorButtonContainer, "", ()=>this.insertStringBtnClickCallback("\n"), t("PROMPT_BUTTON_INSERT_LINE"), "0", "corner-down-left");
+      this.createButton(editorButtonContainer, "", this.delBtnClickCallback.bind(this), "Delete", "5px", "delete");
+      this.createButton(editorButtonContainer, "", ()=>this.insertStringBtnClickCallback(" "), t("PROMPT_BUTTON_INSERT_SPACE"), "5px", "space");
+      this.createButton(editorButtonContainer, "", this.specialCharsBtnClickCallback.bind(this), t("PROMPT_BUTTON_SPECIAL_CHARS"), "5px", "at-sign");
       if(this.view) {
-        this.createButton(editorButtonContainer, "🔗", this.linkBtnClickCallback.bind(this), t("PROMPT_BUTTON_INSERT_LINK"));
+        this.createButton(editorButtonContainer, "", this.linkBtnClickCallback.bind(this), t("PROMPT_BUTTON_INSERT_LINK"), "5px", "link");
       }
-      this.createButton(editorButtonContainer, "🔠", this.uppercaseBtnClickCallback.bind(this), t("PROMPT_BUTTON_UPPERCASE"));
+      this.createButton(editorButtonContainer, "", this.uppercaseBtnClickCallback.bind(this), t("PROMPT_BUTTON_UPPERCASE"), "5px", "arrow-big-up");
     }
   }
 

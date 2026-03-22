@@ -19,25 +19,21 @@ import { t } from "../lang/helpers";
 import { tex2dataURL } from "./LaTeX";
 import ExcalidrawPlugin from "../core/main";
 import { blobToBase64, getDataURLFromURL, getMimeType, getPDFDoc, getURLImageExtension, readLocalFileBinary } from "../utils/fileUtils";
+import { errorlog, getDataURL } from "../utils/coreUtils";
+import { getExportTheme, getLinkParts, hasExportTheme, LinkParts } from "../utils/sceneDataUtils";
 import {
-  errorlog,
-  getDataURL,
-  getExportTheme,
+  cropCanvas,
+  getEmbeddedFilenameParts,
+  getExportPadding,
   getFontDataURL,
   getImageSize,
-  getLinkParts,
-  getExportPadding,
   getWithBackground,
   hasExportBackground,
-  hasExportTheme,
-  LinkParts,
-  svgToBase64,
   isMaskFile,
-  getEmbeddedFilenameParts,
-  cropCanvas,
   promiseTry,
   PromisePool,
-} from "../utils/utils";
+  svgToBase64,
+} from "../utils/embeddedAssetUtils";
 import { getMermaidImageElements, getMermaidText, shouldRenderMermaid } from "../utils/mermaidUtils";
 import { mermaidToExcalidraw } from "src/constants/constants";
 import { ImageKey, imageCache } from "./ImageCache";
@@ -155,7 +151,7 @@ export class EmbeddedFile {
   }
 
   get hasSeparateDarkAndLightVersion(): boolean {
-    return this.isSVGwithBitmap || (this.file && this.file.extension.toLowerCase() === "pdf");
+    return this.isSVGwithBitmap;
   }
 
   public resetImage(hostPath: string, imgPath: string) {
@@ -293,6 +289,7 @@ export class EmbeddedFile {
 
 export class EmbeddedFilesLoader {
   private pdfDocsMap: Map<string, any> = new Map();
+  private pdfDocs: Set<any> = new Set();
   private plugin: ExcalidrawPlugin;
   private isDark: boolean;
   public terminate = false;
@@ -305,7 +302,14 @@ export class EmbeddedFilesLoader {
   }
 
   public emptyPDFDocsMap() {
-    this.pdfDocsMap.forEach((pdfDoc) => pdfDoc.destroy());
+    this.pdfDocs.forEach((pdfDoc) => {
+      try {
+        pdfDoc.destroy();
+      } catch (e) {
+        errorlog({ where: "EmbeddedFileLoader.emptyPDFDocsMap", error: e });
+      }
+    });
+    this.pdfDocs.clear();
     this.pdfDocsMap.clear();
   }
 
@@ -318,9 +322,11 @@ export class EmbeddedFilesLoader {
     size: { height: number; width: number };
     pdfPageViewProps?: PDFPageViewProps;
   }> {
-    const result = await this._getObsidianImage(inFile, depth);
-    this.emptyPDFDocsMap();
-    return result;
+    try {
+      return await this._getObsidianImage(inFile, depth);
+    } finally {
+      this.emptyPDFDocsMap();
+    }
   }
   
   private async getExcalidrawSVG ({
@@ -418,16 +424,33 @@ export class EmbeddedFilesLoader {
     );
     if (imageList.length > 0) {
       hasSVGwithBitmap = true;
-    }
+    }  
 
     if (hasSVGwithBitmap && isDark && !Boolean(maybeSVG)) { 
       imageList.forEach((i) => {
         const id = i.parentElement?.id;
+        if (id.endsWith("-invert-bitmap")) return;
         svg.querySelectorAll(`use[href='#${id}']`).forEach((u) => {
           u.setAttribute("filter", THEME_FILTER);
         });
       });
     }
+
+    const svgsToInvert =  svg.querySelectorAll("symbol[id$='-no-invert-svg']");
+
+    if (svgsToInvert.length > 0) {
+      hasSVGwithBitmap = true;
+    }
+
+    if (svgsToInvert.length > 0 && isDark && !Boolean(maybeSVG)) {
+      svgsToInvert.forEach((i) => {
+        const id = i.id;
+        svg.querySelectorAll(`use[href='#${id}']`).forEach((u) => {
+          u.setAttribute("filter", THEME_FILTER);
+        });
+      });
+    }
+
     if (!hasSVGwithBitmap && svg.getAttribute("hasbitmap")) {
       hasSVGwithBitmap = true;
     }
@@ -670,7 +693,7 @@ export class EmbeddedFilesLoader {
                 created: data.created,
                 size: data.size,
                 hasSVGwithBitmap: false,
-                shouldScale: true
+                shouldScale: true,
               };
               files[batch].push(fileData);
             }
@@ -688,8 +711,7 @@ export class EmbeddedFilesLoader {
             const data = getMermaidText(element);
             const result = await mermaidToExcalidraw(
               data,
-              { themeVariables: { fontSize: "20" } },
-              true
+              { themeVariables: { fontSize: "20" } }
             );
             if(!result) {
               return;
@@ -759,23 +781,27 @@ export class EmbeddedFilesLoader {
       batch++;
     }, 1200);
 
-    const iterator = loadIterator.bind(this)();
-    const concurency = this.plugin.settings.renderingConcurrency;
-    await new PromisePool(iterator, concurency).all();
-    
-    clearInterval(addFilesTimer);
-
-    this.emptyPDFDocsMap();
-    if (this.terminate) {
-      addFiles(undefined, this.isDark, true);
-      return;
-    }
-    //debug({where:"EmbeddedFileLoader.loadSceneFiles",uid:this.uid,status:"add Files"});
     try {
-      //in try block because by the time files are loaded the user may have closed the view
-      addFiles(files[batch], this.isDark, true);
-    } catch (e) {
-      errorlog({ where: "EmbeddedFileLoader.loadSceneFiles", error: e });
+      const iterator = loadIterator.bind(this)();
+      const concurency = this.plugin.settings.renderingConcurrency;
+      if (!this.terminate) {
+        await new PromisePool(iterator, concurency).all();
+      }
+
+      if (this.terminate) {
+        addFiles(undefined, this.isDark, true);
+        return;
+      }
+      //debug({where:"EmbeddedFileLoader.loadSceneFiles",uid:this.uid,status:"add Files"});
+      try {
+        //in try block because by the time files are loaded the user may have closed the view
+        addFiles(files[batch], this.isDark, true);
+      } catch (e) {
+        errorlog({ where: "EmbeddedFileLoader.loadSceneFiles", error: e });
+      }
+    } finally {
+      clearInterval(addFilesTimer);
+      this.emptyPDFDocsMap();
     }
   }
 
@@ -785,9 +811,18 @@ export class EmbeddedFilesLoader {
   ): Promise<[DataURL,Size, PDFPageViewProps]> {
     try {
       let width = 0, height = 0;
-      const pdfDoc = this.pdfDocsMap.get(file.path) ?? await getPDFDoc(file);
-      if(!this.pdfDocsMap.has(file.path)) {
-        this.pdfDocsMap.set(file.path, pdfDoc);
+      let pdfDoc = this.pdfDocsMap.get(file.path);
+      if(!pdfDoc) {
+        pdfDoc = await getPDFDoc(file);
+        if(!pdfDoc) {
+          return [null, null, null];
+        }
+        this.pdfDocs.add(pdfDoc);
+        if(!this.pdfDocsMap.has(file.path)) {
+          this.pdfDocsMap.set(file.path, pdfDoc);
+        }
+      } else {
+        this.pdfDocs.add(pdfDoc);
       }
       const pageNum = isNaN(linkParts.page) ? 1 : (linkParts.page??1);
       const scale = this.plugin.settings.pdfScale;
@@ -795,119 +830,129 @@ export class EmbeddedFilesLoader {
       const validRect = cropRect && cropRect.length === 4 && cropRect.every(x=>!isNaN(x));
       let viewProps: PDFPageViewProps;
 
+      const shouldRetryWithFreshDoc = (e: any): boolean => {
+        const message = `${e?.message ?? e ?? ""}`;
+        return (
+          message.includes("sendWithPromise") ||
+          message.includes("WorkerTransport") ||
+          message.includes("Cannot read properties of null")
+        );
+      };
+
       // Render the page
       const renderPage = async (num:number) => {
-        const canvas = createEl("canvas");
-        const ctx = canvas.getContext('2d');
-        
-        // Get page
-        const page = await pdfDoc.getPage(num);
-        // Set scale
-        const viewport = page.getViewport({ scale });
-        height = canvas.height = Math.round(viewport.height);
-        width = canvas.width = Math.round(viewport.width);
-
-        const renderCtx = {
-          canvasContext: ctx,
-          background: 'rgba(0,0,0,0)',
-          viewport
-        };
-
         //when obsidian loads there seems to be an occasional race condition where the rendering is cancelled
         //this is a workaround for that
         const maxRetries = 4;
         for (let i = 0; i < maxRetries; i++) {
+          const canvas = createEl("canvas");
           try {
+            if (this.terminate) {
+              return null;
+            }
+
+            const ctx = canvas.getContext('2d');
+            // Get page
+            const page = await pdfDoc.getPage(num);
+            // Set scale
+            const viewport = page.getViewport({ scale });
+            height = canvas.height = Math.round(viewport.height);
+            width = canvas.width = Math.round(viewport.width);
+
+            const renderCtx = {
+              canvasContext: ctx,
+              background: 'rgba(0,0,0,0)',
+              viewport
+            };
+
             await page.render(renderCtx).promise;
-            break;
+
+            const [left, bottom, right, top] = page.view;
+            viewProps = {left, bottom, right, top};
+            viewProps.rotate = page.rotate;
+
+            if(validRect) {
+
+              const pageHeight = top - bottom;
+              const pageWidth = right - left;
+
+              if(!page.rotate || page.rotate === 0) {
+                width = (cropRect[2] - cropRect[0]) * scale;
+                height = (cropRect[3] - cropRect[1]) * scale;
+
+                const crop = {
+                  left: (cropRect[0] - left) * scale,
+                  top: (bottom + pageHeight - cropRect[3]) * scale,
+                  width,
+                  height,
+                };
+                return cropCanvas(canvas, crop);
+              }
+              if(page.rotate === 90) {
+                width = (cropRect[3] - cropRect[1]) * scale;
+                height = (cropRect[2] - cropRect[0]) * scale;
+                const crop = {
+                  left: cropRect[1] * scale,
+                  top: (pageHeight - cropRect[2]) * scale,
+                  width,
+                  height,
+                };
+                return cropCanvas(canvas, crop);
+              }
+
+              if(page.rotate === 180) {
+                width = (cropRect[2] - cropRect[0]) * scale;
+                height = (cropRect[3] - cropRect[1]) * scale;
+                const crop = {
+                  left: (pageWidth - cropRect[2]) * scale,
+                  top: cropRect[1] * scale,
+                  width,
+                  height,
+                };
+                return cropCanvas(canvas, crop);
+              }
+
+              if(page.rotate === 270) {
+                width = (cropRect[3] - cropRect[1]) * scale;
+                height = (cropRect[2] - cropRect[0]) * scale;
+                const crop = {
+                  left: (pageWidth - cropRect[3]) * scale,
+                  top: cropRect[0] * scale,
+                  width,
+                  height,
+                };
+                return cropCanvas(canvas, crop);
+              }
+            }
+
+            return canvas;
           } catch (e) {
+            canvas.width = 0;
+            canvas.height = 0;
+
             if (i === maxRetries - 1) throw e; // Throw on last retry
-            await sleep(50*(i+1)); 
+
+            if (shouldRetryWithFreshDoc(e)) {
+              const previousDoc = pdfDoc;
+              const freshDoc = await getPDFDoc(file);
+              if (freshDoc) {
+                pdfDoc = freshDoc;
+                this.pdfDocs.add(freshDoc);
+                if (this.pdfDocsMap.get(file.path) === previousDoc) {
+                  this.pdfDocsMap.set(file.path, freshDoc);
+                }
+              }
+            }
+
+            await sleep(50*(i+1));
             continue;
           }
         }
-        const [left, bottom, right, top] = page.view;
-        viewProps = {left, bottom, right, top};
-        viewProps.rotate = page.rotate;
-
-        if(validRect) {
-
-          const pageHeight = top - bottom;
-          const pageWidth = right - left;
-
-          if(!page.rotate || page.rotate === 0) {  
-            width = (cropRect[2] - cropRect[0]) * scale;
-            height = (cropRect[3] - cropRect[1]) * scale;
-
-            const crop = {
-              left: (cropRect[0] - left) * scale,
-              top: (bottom + pageHeight - cropRect[3]) * scale,
-              width,
-              height,
-            };
-            return cropCanvas(canvas, crop);
-          }
-          if(page.rotate === 90) {
-            width = (cropRect[3] - cropRect[1]) * scale;
-            height = (cropRect[2] - cropRect[0]) * scale;
-            const crop = {
-              left: cropRect[1] * scale,
-              top: (pageHeight - cropRect[2]) * scale,
-              width,
-              height,
-            };
-            return cropCanvas(canvas, crop);
-          }
-          
-          if(page.rotate === 180) {
-            width = (cropRect[2] - cropRect[0]) * scale;
-            height = (cropRect[3] - cropRect[1]) * scale;
-            const crop = {
-              left: (pageWidth - cropRect[2]) * scale,
-              top: cropRect[1] * scale,
-              width,
-              height,
-            };
-            return cropCanvas(canvas, crop);
-          }
-          
-          if(page.rotate === 270) {
-            width = (cropRect[3] - cropRect[1]) * scale;
-            height = (cropRect[2] - cropRect[0]) * scale;
-            const crop = {
-              left: (pageWidth - cropRect[3]) * scale,
-              top: cropRect[0] * scale,
-              width,
-              height,
-            };
-            return cropCanvas(canvas, crop);
-          }
-        }
-        return canvas;
+        return null;
       };
 
       const canvas = await renderPage(pageNum); 
       if(canvas) {
-        // NEW: invert colors for dark theme (keep alpha unchanged)
-        if (this.isDark) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            try {
-              const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-              const data = img.data;
-              for (let i = 0; i < data.length; i += 4) {
-                data[i] = 255 - data[i];       // R
-                data[i + 1] = 255 - data[i+1]; // G
-                data[i + 2] = 255 - data[i+2]; // B
-                // alpha channel (data[i+3]) remains unchanged
-              }
-              ctx.putImageData(img, 0, 0);
-            } catch (e) {
-              // If reading pixel data fails, silently fallback to non-inverted
-            }
-          }
-        }
-
         const result: [DataURL,Size, PDFPageViewProps] = [`data:image/png;base64,${await new Promise((resolve, reject) => {
           canvas.toBlob(async (blob) => {
             const dataURL = await blobToBase64(blob);

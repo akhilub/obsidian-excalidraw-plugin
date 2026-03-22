@@ -150,16 +150,17 @@ const _getPNG = async ({imgAttributes,filenameParts,theme,cacheReady,img,file,ex
   return img;
 }
 
-const setStyle = ({element,imgAttributes,onCanvas}:{
+const setStyle = ({element,imgAttributes,onCanvas, isNativeSVG}:{
   element: HTMLElement,
   imgAttributes: imgElementAttributes,
   onCanvas: boolean,
+  isNativeSVG: boolean,
 }
 ) => {
   (process.env.NODE_ENV === 'development') && DEBUGGING && debug(setStyle, `MarkdownPostProcessor.ts > setStyle`);
   let style = "";
   if(imgAttributes.fwidth) {
-    style = `max-width:${imgAttributes.fwidth}${imgAttributes.fwidth.match(/\d$/) ? "px":""}; `; //width:100%;`; //removed !important https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/886
+    style = `${isNativeSVG ? "max-width:" : "max-width:100%; width:"}${imgAttributes.fwidth}${imgAttributes.fwidth.match(/\d$/) ? "px":""}; `; //width:100%;`; //removed !important https://github.com/zsviczian/obsidian-excalidraw-plugin/issues/886
   } else {
     style = "width: fit-content;"
   }
@@ -247,7 +248,7 @@ const _getSVGIMG = async ({filenameParts,theme,cacheReady,img,file,exportSetting
   return addSVGToImgSrc(img, svg, cacheReady, cacheKey);
 }
 
-const _getSVGNative = async ({filenameParts,theme,cacheReady,containerElement,file,exportSettings,loader}:{
+const _getSVGNative = async ({filenameParts,theme,cacheReady,containerElement,file,exportSettings,loader, width}:{
   filenameParts: FILENAMEPARTS,
   theme: string,
   cacheReady: boolean,
@@ -255,6 +256,7 @@ const _getSVGNative = async ({filenameParts,theme,cacheReady,containerElement,fi
   file: TFile,
   exportSettings: ExportSettings,
   loader: EmbeddedFilesLoader,
+  width?: number,
 }):Promise<HTMLDivElement> => {
   (process.env.NODE_ENV === 'development') && DEBUGGING && debug(_getSVGNative, `MarkdownPostProcessor.ts > _getSVGNative`);
   exportSettings.skipInliningFonts = false;
@@ -302,7 +304,11 @@ const _getSVGNative = async ({filenameParts,theme,cacheReady,containerElement,fi
     cacheReady && imageCache.addImageToCache(cacheKey,"", svg);
   }
 
-  svg.removeAttribute("width");
+  if(width && !isNaN(width)) {
+    svg.setAttribute("width", width.toString());
+  } else {
+    svg.removeAttribute("width");
+  }
   svg.removeAttribute("height");
   containerElement.append(svg);
   return containerElement;
@@ -367,18 +373,28 @@ const getIMG = async (
   switch (plugin.settings.previewImageType) {
     case PreviewImageType.PNG: {
       const img = createEl("img");
-      setStyle({element:img,imgAttributes,onCanvas});
+      setStyle({element:img,imgAttributes,onCanvas, isNativeSVG: false});
       return await _getPNG({imgAttributes,filenameParts,theme,cacheReady,img,file,exportSettings,loader});
     }
     case PreviewImageType.SVGIMG: {
       const img = createEl("img");
-      setStyle({element:img,imgAttributes,onCanvas});
+      setStyle({element:img,imgAttributes,onCanvas, isNativeSVG: false});
       return await _getSVGIMG({filenameParts,theme,cacheReady,img,file,exportSettings,loader});
     }
     case PreviewImageType.SVG:  {
       const img = createEl("div");
-      setStyle({element:img,imgAttributes,onCanvas});
-      return await _getSVGNative({filenameParts,theme,cacheReady,containerElement: img,file,exportSettings,loader});
+      setStyle({element:img,imgAttributes,onCanvas, isNativeSVG: true});
+      return await _getSVGNative({
+        filenameParts,
+        theme,
+        cacheReady,
+        containerElement: img,file,
+        exportSettings,
+        loader,
+        width: imgAttributes.fwidth
+         ? (!imgAttributes.fwidth.endsWith("%") ? parseInt(imgAttributes.fwidth) : 1000)
+         : undefined,
+      });
     }
   }
 };

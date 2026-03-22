@@ -103,7 +103,10 @@ if (!isLib) {
   const plugin_styles = fs.readFileSync("./styles.css", "utf8");
   const styles = excalidraw_styles + plugin_styles;
   cssnano()
-    .process(styles) // Process the CSS
+    .process(styles, {
+      from: path.resolve("styles.css"),
+      to: path.resolve(DIST_FOLDER, "styles.css"),
+    })
     .then(result => {
       fs.writeFileSync(`./${DIST_FOLDER}/styles.css`, result.css);
     })
@@ -188,8 +191,10 @@ const BUILD_CONFIG = {
         },
       }),
       postprocess([
-        [/React=require\("react"\),state=require\("@codemirror\/state"\),view=require\("@codemirror\/view"\)/,
-        `state=require("@codemirror/state"),view=require("@codemirror/view")` + packageString],
+        [
+          /(var[^;]*?),\s*React\s*=\s*require\(["']react["']\)([^;]*;)/,
+          (_, g1, g2) => `${g1}${g2}${packageString}`
+        ],
       ]),
     ] : [
       postprocess([ [/var React = require\('react'\);/, packageString] ]),

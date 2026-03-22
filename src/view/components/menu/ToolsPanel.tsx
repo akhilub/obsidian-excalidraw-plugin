@@ -4,8 +4,9 @@ import * as React from "react";
 import { ActionButton } from "./ActionButton";
 import { ICONS, saveIcon, stringToSVG } from "../../../constants/actionIcons";
 import { DEVICE, SCRIPT_INSTALL_FOLDER } from "../../../constants/constants";
-import { insertLaTeXToView, search } from "../../../utils/excalidrawAutomateUtils";
-import ExcalidrawView, { TextMode } from "../../ExcalidrawView";
+import { insertLaTeXToView, search } from "../../../utils/excalidrawViewHelpers";
+import { TextMode } from "../../../shared/TextMode";
+import ExcalidrawView from "../../ExcalidrawView";
 import { t } from "../../../lang/helpers";
 import { ReleaseNotes } from "../../../shared/Dialogs/ReleaseNotes";
 import { ScriptIconMap } from "../../../shared/Scripts";
@@ -580,7 +581,7 @@ export class ToolsPanel extends React.Component<PanelProps, PanelState> {
                     key={"ui-mode"}
                     title={t("UI_MODE")}
                     action={this.actionToggleTrayMode.bind(this)}
-                    icon={ICONS.trayMode}
+                    icon={ICONS.tray}
                   />
                   <ActionButton
                     key={"fullscreen"}

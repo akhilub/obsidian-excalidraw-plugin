@@ -17,6 +17,7 @@ import {
 } from "obsidian";
 import {
   VIEW_TYPE_EXCALIDRAW,
+  VIEW_TYPE_SIDEPANEL,
   EXCALIDRAW_ICON,
   ICON_NAME,
   SCRIPTENGINE_ICON,
@@ -59,6 +60,7 @@ import {
   isCallerFromTemplaterPlugin,
   versionUpdateCheckTimer,
   getFontMetrics,
+  calculateUIModeValue,
 } from "../utils/utils";
 import { foldExcalidrawSection, getExcalidrawViews, setExcalidrawView } from "../utils/obsidianUtils";
 import { FileId } from "@zsviczian/excalidraw/types/element/src/types";
@@ -86,12 +88,16 @@ import { PluginFileManager } from "./managers/FileManager";
 import { ObserverManager } from "./managers/ObserverManager";
 import { PackageManager } from "./managers/PackageManager";
 import ExcalidrawView from "../view/ExcalidrawView";
+import { ExcalidrawSidepanelView } from "../view/sidepanel/Sidepanel";
 import { CommandManager } from "./managers/CommandManager";
 import { EventManager } from "./managers/EventManager";
 import { UniversalInsertFileModal } from "src/shared/Dialogs/UniversalInsertFileModal";
 import en from "src/lang/locale/en";
 import { get } from "http";
 import { getHighlightColor } from "src/utils/dynamicStyling";
+import { InlineLinkSuggester } from "src/shared/Suggesters/InlineLinkSuggester";
+import { KeyBlocker } from "src/types/excalidrawAutomateTypes";
+import { UIMode } from "src/shared/Dialogs/UIModeSettingComponent";
 
 declare const PLUGIN_VERSION:string;
 declare const INITIAL_TIMESTAMP: number;
@@ -118,6 +124,7 @@ export default class ExcalidrawPlugin extends Plugin {
   public settings: ExcalidrawSettings;
   public activeExcalidrawView: ExcalidrawView = null;
   public lastActiveExcalidrawFilePath: string = null;
+  public lastActiveExcalidrawLeafID: string = null;
   public hover: { linkText: string; sourcePath: string } = {
     linkText: null,
     sourcePath: null,
@@ -280,6 +287,10 @@ export default class ExcalidrawPlugin extends Plugin {
           return new ExcalidrawLoading(leaf, this);
         }
       },
+    );
+    this.registerView(
+      VIEW_TYPE_SIDEPANEL,
+      (leaf: WorkspaceLeaf) => new ExcalidrawSidepanelView(leaf, this),
     );
     //Compatibility mode with .excalidraw files
     this.registerExtensions(["excalidraw"], VIEW_TYPE_EXCALIDRAW);
@@ -764,6 +775,26 @@ export default class ExcalidrawPlugin extends Plugin {
             if(Object.keys(this.scriptEngine.scriptIconMap).length === 0) {
               this.scriptEngine.loadScripts();
             }
+            const restartSidepanelTabIfActive = async () => {
+              if (!this.scriptEngine || !(scriptFile instanceof TFile)) {
+                return;
+              }
+              const scriptName = this.scriptEngine.getScriptName(scriptFile);
+              const spView = ExcalidrawSidepanelView.getExisting(false);
+              if (!spView || !scriptName || !spView.getTabByScript(scriptName)) {
+                return;
+              }
+              try {
+                await spView.restartTabForScript(scriptName);
+              } catch (error) {
+                errorlog({
+                  where: "ExcalidrawPlugin.registerInstallCodeblockProcessor.restartSidepanelTab",
+                  error,
+                  scriptName,
+                });
+              }
+            };
+            await restartSidepanelTabIfActive();
             new Notice(`Installed: ${(scriptFile as TFile).basename}`);
           } catch (e) {
             new Notice(`Error installing script: ${fname}`);
@@ -1155,6 +1186,7 @@ export default class ExcalidrawPlugin extends Plugin {
   }
 
   onunload() {
+    ExcalidrawSidepanelView.onPluginUnload(this);
     const excalidrawViews = getExcalidrawViews(this.app);
     excalidrawViews.forEach(({leaf}) => {
       this.setMarkdownView(leaf);
@@ -1254,6 +1286,10 @@ export default class ExcalidrawPlugin extends Plugin {
   async saveSettings() {
     (process.env.NODE_ENV === 'development') && DEBUGGING && debug(this.saveSettings,`ExcalidrawPlugin.saveSettings`);
     await this.saveData(this.settings);
+  }
+
+  public async openSidepanel(reveal: boolean = true): Promise<ExcalidrawSidepanelView | null> {
+    return ExcalidrawSidepanelView.getOrCreate(this, reveal);
   }
 
   public getStencilLibrary(): {} {
@@ -1495,5 +1531,30 @@ export default class ExcalidrawPlugin extends Plugin {
 
   public getHighlightColor(sceneBgColor: string, opacity: number = 1): string {
     return getHighlightColor(this.ea, sceneBgColor, opacity);
+  }
+
+  /**
+   * Attaches an inline link suggester to the specified input element.
+   * @param inputEl The HTML input element to attach the suggester to.
+   * @param widthWrapper Optional HTML element to wrap the width of suggester element.
+   * @param containerEl Optional container element used as collision boundary.
+   * @param surpessPlaceholder Whether to suppress the placeholder text. Defaults to true.
+   * @returns A KeyBlocker instance for managing keyboard input.
+   */
+  public attachInlineLinkSuggester(
+    inputEl: HTMLInputElement,
+    widthWrapper?: HTMLElement,
+    containerEl?: HTMLDivElement,
+    surpessPlaceholder: boolean = true
+  ): KeyBlocker {
+    const getSourcePath = () => {
+      this.ea.setView();
+      return this.ea.targetView?.file?.path;
+    };
+    return new InlineLinkSuggester(this.app, this, inputEl, getSourcePath, widthWrapper, surpessPlaceholder, containerEl);
+  }
+
+  public getPreferredUIMode(): UIMode {
+    return calculateUIModeValue(this.settings);
   }
 }

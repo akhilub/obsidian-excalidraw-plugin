@@ -2,36 +2,14 @@ import { DataURL } from "@zsviczian/excalidraw/types/excalidraw/types";
 import { App, loadPdfJs, MetadataCache, normalizePath, Notice, requestUrl, RequestUrlResponse, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import { DEVICE, EXCALIDRAW_PLUGIN, FRONTMATTER_KEYS, URLFETCHTIMEOUT } from "src/constants/constants";
 import { ExcalidrawSettings } from "src/core/settings";
-import { errorlog, getDataURL } from "./utils";
+export { splitFolderAndFilename } from "./pathUtils";
+import { errorlog, getDataURL } from "./coreUtils";
 import ExcalidrawPlugin from "src/core/main";
-import { getAttachmentsFolderAndFilePath } from "./obsidianUtils";
-import ExcalidrawView from "src/view/ExcalidrawView";
+import { getAttachmentsFolderAndFilePath, splitFolderAndFilename } from "./pathUtils";
+import type ExcalidrawView from "src/view/ExcalidrawView";
 import { IMAGE_MIME_TYPES, MimeType } from "src/types/embeddedFileLoaderTypes";
 
-/**
- * Splits a full path including a folderpath and a filename into separate folderpath and filename components
- * @param filepath
- * @returns returns "" for root folder and normalized path for subfolders (no trailing "/", e.g. "folder/subfolder")
- */
 type ImageExtension = keyof typeof IMAGE_MIME_TYPES;
-
-export function splitFolderAndFilename(filepath: string): {
-  folderpath: string;
-  filename: string;
-  basename: string;
-  extension: string;
-} {
-  const lastIndex = filepath.lastIndexOf("/");
-  const filename = lastIndex == -1 ? filepath : filepath.substring(lastIndex + 1);
-  const lastDotIndex = filename.lastIndexOf(".");
-  const folderpath = filepath.substring(0, lastIndex);
-  return {
-    folderpath: folderpath ? normalizePath(folderpath) : "",
-    filename,
-    basename: filename.replace(/\.[^/.]+$/, ""),
-    extension: lastDotIndex > 0 ? filename.substring(lastDotIndex + 1) : "",
-  };
-}
 
 /**
  * Download data as file from Obsidian, to store on local device
@@ -305,7 +283,22 @@ export const arrayBufferToBase64 = (arrayBuffer: ArrayBuffer): string => {
 
 export const getPDFDoc = async (f: TFile): Promise<any> => {
   if(typeof window.pdfjsLib === "undefined") await loadPdfJs();
-  return await window.pdfjsLib.getDocument(EXCALIDRAW_PLUGIN.app.vault.getResourcePath(f)).promise;
+
+  const pdfjs = window.pdfjsLib;
+  const url = EXCALIDRAW_PLUGIN.app.vault.getResourcePath(f);
+
+  const workerSrc = pdfjs.GlobalWorkerOptions.workerSrc as string;
+  const workerDir = workerSrc?.replace(/pdf\.worker(\.min)?\.m?js$/, "");
+  const wasmUrl = workerDir ? `${workerDir}wasm/` : undefined;
+
+  return await pdfjs.getDocument({
+    url,
+    wasmUrl,
+    cMapUrl: "/lib/pdfjs/cmaps/",
+    cMapPacked: true,
+    standardFontDataUrl: "/lib/pdfjs/standard_fonts/",
+    iccUrl: "/lib/pdfjs/iccs/",
+  }).promise;
 }
 
 export const readLocalFile = async (filePath:string): Promise<string> => {

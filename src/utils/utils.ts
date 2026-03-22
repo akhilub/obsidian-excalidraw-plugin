@@ -6,7 +6,9 @@ import {
   TFolder,
 } from "obsidian";
 import { Random } from "roughjs/bin/math";
-import { BinaryFileData, DataURL} from "@zsviczian/excalidraw/types/excalidraw/types";
+import { BinaryFileData } from "@zsviczian/excalidraw/types/excalidraw/types";
+export { errorlog, getDataURL } from "./coreUtils";
+import { errorlog, getDataURL } from "./coreUtils";
 import {
   exportToSvg,
   exportToBlob,
@@ -24,7 +26,10 @@ import { getDataURLFromURL, getIMGFilename, getMimeType, getURLImageExtension } 
 import { generateEmbeddableLink } from "./customEmbeddableUtils";
 import { FILENAMEPARTS } from "../types/utilTypes";
 import { Mutable } from "@zsviczian/excalidraw/types/common/src/utility-types";
-import { cleanBlockRef, cleanSectionHeading, getExcalidrawViews, getFileCSSClasses } from "./obsidianUtils";
+import { getExcalidrawViews, getFileCSSClasses } from "./obsidianUtils";
+import { cleanBlockRef, cleanSectionHeading } from "./pathUtils";
+export { addAppendUpdateCustomData } from "./elementCustomDataUtils";
+import { addAppendUpdateCustomData } from "./elementCustomDataUtils";
 import { updateElementLinksToObsidianLinks } from "./excalidrawAutomateUtils";
 import { CropImage } from "../shared/CropImage";
 import opentype from 'opentype.js';
@@ -239,21 +244,6 @@ export function rotatedDimensions (
   return [bb.minX, bb.minY, bb.maxX - bb.minX, bb.maxY - bb.minY];
 };
 
-export async function getDataURL(
-  file: ArrayBuffer,
-  mimeType: string,
-): Promise<DataURL> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataURL = reader.result as DataURL;
-      resolve(dataURL);
-    };
-    reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(new Blob([new Uint8Array(file)], { type: mimeType }));
-  });
-};
-
 export async function getFontDataURL (
   app: App,
   fontFileName: string,
@@ -343,6 +333,7 @@ export async function getSVG (
   exportSettings: ExportSettings,
   padding: number,
   srcFile: TFile|null, //if set, will replace markdown links with obsidian links
+  overrideFiles?: Record<ExcalidrawElement["id"], BinaryFileData>,
 ): Promise<SVGSVGElement> {
   let elements:ExcalidrawElement[] = scene.elements;
   if(elements.some(el => el.type === "embeddable")) {
@@ -359,10 +350,13 @@ export async function getSVG (
     })
     : elements;
 
+  const baseFiles = scene.files ?? {};
+  const files = overrideFiles ? { ...baseFiles, ...overrideFiles } : baseFiles;
+
   try {
     let svg: SVGSVGElement;
     if(exportSettings.isMask) {
-      const cropObject = new CropImage(elements, scene.files);
+      const cropObject = new CropImage(elements, files);
       svg = await cropObject.getCroppedSVG();
       cropObject.destroy();
     } else {
@@ -378,7 +372,7 @@ export async function getSVG (
           ? {frameRendering: exportSettings.frameRendering}
           : {},
         },
-        files: scene.files,
+        files,
         exportPadding: exportSettings.frameRendering?.enabled ? 0 : padding,
         exportingFrame: null,
         renderEmbeddables: true,
@@ -415,10 +409,14 @@ export async function getPNG (
   exportSettings: ExportSettings,
   padding: number,
   scale: number = 1,
+  overrideFiles?: Record<ExcalidrawElement["id"], BinaryFileData>,
 ): Promise<Blob> {
   try {
+    const baseFiles = scene.files ?? {};
+    const files = overrideFiles ? { ...baseFiles, ...overrideFiles } : baseFiles;
+
     if(exportSettings.isMask) {
-      const cropObject = new CropImage(scene.elements, scene.files);
+      const cropObject = new CropImage(scene.elements, files);
       const blob = await cropObject.getCroppedPNG();
       cropObject.destroy();
       return blob;
@@ -436,7 +434,7 @@ export async function getPNG (
         ? {frameRendering: exportSettings.frameRendering}
         : {},
       },
-      files: filterFiles(scene.files),
+      files: filterFiles(files),
       exportPadding: exportSettings.frameRendering?.enabled ? 0 : padding,
       mimeType: "image/png",
       getDimensions: (width: number, height: number) => ({
@@ -486,22 +484,6 @@ export async function getImageSize (
     img.onerror = reject;
     img.src = src;
   });
-};
-
-export function addAppendUpdateCustomData (
-  el: Mutable<ExcalidrawElement>,
-  newData: Partial<Record<string, unknown>>
-): ExcalidrawElement {
-  if(!newData) return el;
-  if(!el.customData) el.customData = {};
-  for (const key in newData) {
-    if(typeof newData[key] === "undefined") {
-      delete el.customData[key];
-      continue;
-    }
-    el.customData[key] = newData[key];
-  }
-  return el;
 };
 
 export function scaleLoadedImage (
@@ -578,7 +560,17 @@ export function scaleLoadedImage (
               el.crop = null;
             }
           }
-        } else if(maintainArea) {
+        }else if (el?.customData?.latexscale) { // scale latex
+          const scale = el?.customData?.latexscale;
+          dirty = true;
+          const elNewHeight = imgHeight * scale.scaleY;
+          const elNewWidth = imgWidth * scale.scaleX;
+          el.height = elNewHeight;
+          el.width = elNewWidth;
+          // we won't need the latexscale anymore
+          // if we don't delete it, it will (maybe wrongfully) scale it back when reloading the view
+          addAppendUpdateCustomData(el, {latexscale : undefined});
+        }else if(maintainArea) {
           const elAspectRatio = elWidth / elHeight;
           if (imgAspectRatio !== elAspectRatio) {
             dirty = true;
@@ -634,12 +626,16 @@ export function setLeftHandedMode (isLeftHanded: boolean) {
 };
 
 export function calculateUIModeValue(settings: ExcalidrawSettings): UIMode {
+  const phoneMode = settings.phoneUIMode ?? "mobile";
+  const tabletMode = settings.tabletUIMode ?? "compact";
+  const desktopMode = settings.desktopUIMode ?? "tray";
+
   return DEVICE.isPhone
-  ? "phone"
+  ? phoneMode
   : DEVICE.isTablet
-  ? settings.tabletUIMode
+  ? tabletMode
   : DEVICE.isDesktop
-  ? settings.desktopUIMode
+  ? desktopMode
   : "tray";
 }
 
@@ -949,10 +945,6 @@ export function fragWithHTML (html: string) {
   return createFragment((frag) => (frag.createDiv().innerHTML = html));
 }
 
-export function errorlog (data: {}) {
-  console.error({ plugin: "Excalidraw", ...data });
-};
-
 export async function sleep (ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1219,23 +1211,37 @@ export class PromisePool<T> {
   }
 
   public all() {
-    const listener = (event: { data: { result: void | [number, T] } }) => {
-      if (event.data.result) {
-        // by default pool does not return the results, so we are gathering them manually
-        // with the correct call order (represented by the index in the tuple)
-        const [index, value] = event.data.result;
-        this.entries[index] = value;
+    try {
+      if (!this.pool) {
+        return Promise.resolve(Object.values(this.entries));
       }
-    };
 
-    this.pool.addEventListener("fulfilled", listener);
+      const listener = (event: { data: { result: void | [number, T] } }) => {
+        if (event.data.result) {
+          // by default pool does not return the results, so we are gathering them manually
+          // with the correct call order (represented by the index in the tuple)
+          const [index, value] = event.data.result;
+          this.entries[index] = value;
+        }
+      };
 
-    return this.pool.start().then(() => {
-      setTimeout(() => {
-        this.pool.removeEventListener("fulfilled", listener);
-      });
+      this.pool.addEventListener("fulfilled", listener);
 
-      return Object.values(this.entries);
-    });
+      return Promise.resolve(this.pool.start()).then(
+        () => {
+          setTimeout(() => {
+            this.pool?.removeEventListener("fulfilled", listener);
+          });
+          return Object.values(this.entries);
+        },
+        () => {
+          this.pool?.removeEventListener("fulfilled", listener);
+          // return partial results if the pool was aborted/destroyed
+          return Object.values(this.entries);
+        },
+      );
+    } catch (_error) {
+      return Promise.resolve(Object.values(this.entries));
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { DEVICE, FRONTMATTER_KEYS, CJK_FONTS } from "src/constants/constants";
 import { TAG_AUTOEXPORT, TAG_MDREADINGMODE, TAG_PDFEXPORT } from "src/constants/constSettingsTags";
-import { labelALT, labelCTRL, labelMETA, labelSHIFT } from "src/utils/modifierkeyHelper";
+import { labelALT, labelCTRL, labelMETA, labelSHIFT } from "src/utils/modifierKeyLabels";
 
 // русский
 export default {
@@ -132,8 +132,6 @@ export default {
   CONVERT_TO_MARKDOWN: "Преобразовать в файл...",
   SELECT_TEXTELEMENT_ONLY: "Выбрать только текстовый элемент (не контейнер)",
   REMOVE_LINK: "Удалить ссылку на текстовый элемент",
-  LASER_ON: "Включить лазерный указатель",
-  LASER_OFF: "Отключить лазерный указатель",
   WELCOME_RANK_NEXT: "Больше рисунков до следующего ранга!",
   WELCOME_RANK_LEGENDARY: "Вы на вершине. Продолжайте быть легендарным!",
   WELCOME_COMMAND_PALETTE: 'Введите «Excalidraw» в палитре коман',

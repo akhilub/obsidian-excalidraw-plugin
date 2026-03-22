@@ -8,6 +8,7 @@ import { ExcalidrawAutomate } from "src/shared/ExcalidrawAutomate";
 import { DEVICE, FRONTMATTER_KEYS, ICON_NAME, VIEW_TYPE_EXCALIDRAW } from "src/constants/constants";
 import ExcalidrawView from "src/view/ExcalidrawView";
 import { t } from "src/lang/helpers";
+import { setMobileNavbarPosition } from "src/utils/excalidrawViewUtils";
 
 /**
  * Registers event listeners for the plugin
@@ -118,7 +119,9 @@ export class EventManager {
   }
 
   private onLayoutChangeHandler() {
-    getExcalidrawViews(this.app).forEach(excalidrawView=>excalidrawView.refresh());
+    if (this.app.workspace.layoutReady) {
+      getExcalidrawViews(this.app).forEach(excalidrawView=>!!excalidrawView?.refresh && excalidrawView.refresh());
+    }
   }
 
   private onPasteHandler (evt: ClipboardEvent, editor: Editor, info: MarkdownView | MarkdownFileInfo ) {
@@ -193,6 +196,15 @@ export class EventManager {
       this.plugin.lastPDFLeafID = leaf.id;
     }
 
+    if (leaf.view && leaf.view.getViewType() === VIEW_TYPE_EXCALIDRAW) {
+      this.plugin.lastActiveExcalidrawLeafID = leaf.id;
+    } else {
+      const lastLeaf = this.app.workspace.getLeafById(this.plugin.lastActiveExcalidrawLeafID);
+      if(!lastLeaf || !(lastLeaf.view instanceof ExcalidrawView)) {
+        this.plugin.lastActiveExcalidrawLeafID = null;
+      }
+    }
+
     if(this.leafChangeTimeout) {
       window.clearTimeout(this.leafChangeTimeout);
     }
@@ -225,22 +237,7 @@ export class EventManager {
       this.plugin.removeModalContainerObserver();
     }
 
-    //!Temporary hack
-    //https://discord.com/channels/686053708261228577/817515900349448202/1031101635784613968
-    if (DEVICE.isMobile && newActiveviewEV && !previouslyActiveEV) {
-      const navbar = document.querySelector("body>.app-container>.mobile-navbar");
-      if(navbar && navbar instanceof HTMLDivElement) {
-        navbar.style.position="relative";
-      }
-    }
-
-    if (DEVICE.isMobile && !newActiveviewEV && previouslyActiveEV) {
-      const navbar = document.querySelector("body>.app-container>.mobile-navbar");
-      if(navbar && navbar instanceof HTMLDivElement) {
-        navbar.style.position="";
-      }
-    }
-
+    setMobileNavbarPosition(!!newActiveviewEV);
     //----------------------
     //----------------------
 
